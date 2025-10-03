@@ -1,8 +1,41 @@
-# PKM Semantic Vault
+# Semantic PKM System 🧠
 
-An intelligent personal knowledge management (PKM) system that automatically understands and organizes your Markdown files. Features professional-grade content processing with multi-user support and automatic goal extraction.
+An intelligent Personal Knowledge Management (PKM) system with **two complementary interfaces**:
 
-## ✨ Key Features
+1. **`index.html`** - Enterprise-grade PKM with vault loading, semantic IDs, and knowledge graphs
+2. **`streamline.html`** ⭐ **NEW** - Modern everyday-life dashboard with PARA methodology
+
+Perfect for managing personal goals, family projects, home tasks, learning routines, and daily life organization.
+
+**Live Demo**: `https://compleet.github.io/semanticproject/streamline.html`
+
+---
+
+## 🎯 Two Interfaces, One Vision
+
+### 📊 **Enterprise PKM** (`index.html`)
+Advanced knowledge management with automatic vault processing, multi-user support, and semantic relationship mapping.
+
+**Best for:** Researchers, developers, knowledge workers managing large note collections.
+
+### 🏠 **Streamline Dashboard** (`streamline.html`) ⭐ NEW
+Beautiful, user-friendly interface for everyday life management using the PARA framework.
+
+**Best for:** Regular people managing home projects, family coordination, health routines, and personal growth.
+
+---
+
+## ✨ Streamline Features (NEW!)
+
+**Design Philosophy**: "Does my smart grandmother understand this?"
+
+### 🏠 **Everyday Life Management**
+- **PARA Framework**: Projects, Areas, Resources, Archives methodology
+- **Real-Looking Content**: Garden projects, family reunions, health routines (not "Project Alpha")
+- **Clickable Everything**: All items open in staging area with full details
+- **Persistent AI Assistant**: Always-visible bottom chat panel for help
+- **LocalStorage Persistence**: Your data saves automatically between sessions
+- **Progress Tracking**: Visual bars and goal completion
 
 ### 🧠 **Intelligent Content Processing**
 - **Automatic Goal Extraction**: Detects goals from any .md files using pattern recognition
@@ -68,15 +101,76 @@ The system includes comprehensive testing:
 - **Multi-User Support**: Seamless persona switching
 - **Goal Extraction**: Pattern recognition validation
 
-## Serving locally
+## 🖥️ Serving Locally
 
-If you want to serve the project and use the bundled `vault/` folder, run:
+### For Streamline Dashboard (Recommended)
+```bash
+# Simple Python server
+python3 -m http.server 8000
 
+# Or use serve.sh script
+./serve.sh
+
+# Open in browser
+# Streamline: http://localhost:8000/streamline.html
+# Main PKM: http://localhost:8000/index.html
+```
+
+### For Main PKM with Vaults
 ```bash
 ./serve.sh
 ```
-
 Then open http://localhost:8000 in Chrome/Edge and click "Load ./vault/".
+
+## 🎨 Customization
+
+### Edit Streamline Data
+Modify the `paraData` object in `streamline.html` (around line 450):
+```javascript
+const paraData = {
+  projects: [
+    { id:'proj-1', name:'Your Project', description:'...', progress:0.5, goals:[], status:'active' }
+  ],
+  // ... areas, resources, archives, ideas
+};
+```
+
+### Theme Colors
+Edit CSS custom properties (line ~50 in streamline.html):
+```css
+:root {
+  --accent: #FF6B35;
+  --bg: #0a0a0f;
+  --text: #e8e8ea;
+}
+```
+
+## 🗺️ Roadmap
+
+### Completed ✅
+- [x] Streamline dashboard with PARA methodology
+- [x] Permanent AI assistant chat panel
+- [x] Interactive project staging
+- [x] Idea board & quick tags
+- [x] Theme toggle (light/dark)
+- [x] Command palette (Ctrl+K)
+- [x] LocalStorage persistence
+
+### Next Up 🚀
+- [ ] Quick-add UI (tasks/ideas buttons)
+- [ ] Mobile responsive improvements
+- [ ] Export to markdown files
+- [ ] Drag & drop PARA reordering
+- [ ] Real AI integration (OpenAI/Gemini)
+- [ ] Keyboard shortcuts help overlay
+
+## 📄 License
+
+MIT License - Use freely for personal or commercial projects.
+
+---
+
+**Made with ❤️ for people organizing their lives without engineering degrees.**
 
 ## Tech
 

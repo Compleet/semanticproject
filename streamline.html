@@ -721,6 +721,72 @@ const paraData = {
   ]
 };
 
+// ===== LOCALSTORAGE PERSISTENCE =====
+const STORAGE_KEY = 'streamline-para-data';
+
+function saveParaData(){
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(paraData));
+    console.log('✅ Saved PARA data to localStorage');
+  } catch(e){
+    console.warn('⚠️ Failed to save PARA data:', e);
+  }
+}
+
+function loadParaData(){
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if(stored){
+      const loaded = JSON.parse(stored);
+      // Merge loaded data with defaults (in case structure changed)
+      Object.keys(paraData).forEach(key => {
+        if(loaded[key]) paraData[key] = loaded[key];
+      });
+      console.log('✅ Loaded PARA data from localStorage');
+      return true;
+    }
+  } catch(e){
+    console.warn('⚠️ Failed to load PARA data:', e);
+  }
+  return false;
+}
+
+function updateProjectProgress(projectId, newProgress){
+  const project = paraData.projects.find(p => p.id === projectId);
+  if(project){
+    project.progress = newProgress;
+    saveParaData();
+    console.log(`✅ Updated ${project.name} progress to ${Math.round(newProgress*100)}%`);
+  }
+}
+
+function addIdea(title, body){
+  const newIdea = {
+    id: 'idea-' + Date.now().toString(36),
+    title: title || 'New Idea',
+    body: body || ''
+  };
+  paraData.ideas.unshift(newIdea);
+  saveParaData();
+  return newIdea;
+}
+
+function deleteItem(section, id){
+  const idx = paraData[section].findIndex(item => item.id === id);
+  if(idx !== -1){
+    paraData[section].splice(idx, 1);
+    saveParaData();
+    return true;
+  }
+  return false;
+}
+
+// Load data on startup
+loadParaData();
+
+// Auto-save when window closes
+window.addEventListener('beforeunload', saveParaData);
+
 // Add PARA section to sidebar
 const sidebar = document.querySelector('.sidebar');
 if(sidebar){
@@ -830,7 +896,16 @@ function showEntityNote(ent, section){
         <h3 style='margin:0;font-size:13px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-secondary);'>Goals</h3>
         <div style='display:flex;flex-wrap:wrap;gap:6px;'>${ent.goals.map(g=>`<span class='badge' style='font-size:10px;'>${g}</span>`).join('')}</div>
       </div>`:''}
-      ${(section==='projects' && typeof ent.progress==='number')?`<div><div style='height:8px;border-radius:5px;background:rgba(255,255,255,0.12);overflow:hidden;position:relative;margin-bottom:6px;'><div style='position:absolute;inset:0;width:${Math.round(ent.progress*100)}%;background:var(--accent-grad);'></div></div><div style='font-size:11px;color:var(--text-faint);'>Progress: ${Math.round(ent.progress*100)}%</div></div>`:''}
+      ${(section==='projects' && typeof ent.progress==='number')?`<div>
+        <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;'>
+          <label style='font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);'>Progress</label>
+          <span id='progressValue' style='font-size:13px;font-weight:600;color:var(--accent);'>${Math.round(ent.progress*100)}%</span>
+        </div>
+        <input type='range' min='0' max='100' value='${Math.round(ent.progress*100)}' id='progressSlider' style='width:100%;margin-bottom:6px;' />
+        <div style='height:8px;border-radius:5px;background:rgba(255,255,255,0.12);overflow:hidden;position:relative;'>
+          <div id='progressBar' style='position:absolute;inset:0;width:${Math.round(ent.progress*100)}%;background:var(--accent-grad);transition:width 0.3s ease;'></div>
+        </div>
+      </div>`:''}
       <div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;'>
         <div class='placeholder-block' style='padding:14px;'>Next Actions<br/><span style='font-size:11px;color:var(--text-faint);'>Add soon</span></div>
         <div class='placeholder-block' style='padding:14px;'>Related Notes<br/><span style='font-size:11px;color:var(--text-faint);'>Coming</span></div>
@@ -838,6 +913,28 @@ function showEntityNote(ent, section){
       </div>
     </div>
   </div>`;
+  
+  // Add interactive progress slider for projects
+  if(section==='projects' && typeof ent.progress==='number'){
+    setTimeout(()=>{
+      const slider = document.getElementById('progressSlider');
+      const bar = document.getElementById('progressBar');
+      const value = document.getElementById('progressValue');
+      if(slider && bar && value){
+        slider.addEventListener('input', (e)=>{
+          const pct = e.target.value;
+          value.textContent = pct + '%';
+          bar.style.width = pct + '%';
+        });
+        slider.addEventListener('change', (e)=>{
+          const pct = parseInt(e.target.value) / 100;
+          updateProjectProgress(ent.id, pct);
+          appendAI(`Updated ${ent.name} to ${Math.round(pct*100)}% complete. Changes saved!`);
+        });
+      }
+    }, 50);
+  }
+  
   appendAI('Loaded '+(tags[0]||'item')+': '+ent.name);
 }
 
