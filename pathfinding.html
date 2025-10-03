@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🧭 Semantic Pathfinding - GPS for Goals</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #fff;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      position: relative;
+    }
+
+    h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #FFD700, #FF4500);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: glow 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes glow {
+      from {
+        filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.4));
+      }
+
+      to {
+        filter: drop-shadow(0 0 30px rgba(255, 69, 0, 0.6));
+      }
+    }
+
+    .subtitle {
+      font-size: 1.2rem;
+      color: #cbd5e1;
+      margin-bottom: 30px;
+    }
+
+    .pathfinding-interface {
+      display: grid;
+      grid-template-columns: 1fr 2fr 1fr;
+      gap: 30px;
+      height: calc(100vh - 200px);
+      min-height: 600px;
+    }
+
+    .input-panel,
+    .results-panel {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .visualization-panel {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(15px);
+      border-radius: 20px;
+      padding: 20px;
+      border: 1px solid rgba(255, 215, 0, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 25px;
+      color: #FFD700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .goal-input {
+      margin-bottom: 25px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #FFD700;
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    }
+
+    .user-context {
+      margin-bottom: 25px;
+    }
+
+    .skill-slider {
+      margin-bottom: 20px;
+    }
+
+    .slider {
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #FFD700;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+
+    .pathfind-button {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, #FFD700, #FF4500);
+      border: none;
+      border-radius: 15px;
+      color: #000;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
+    }
+
+    .pathfind-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px rgba(255, 215, 0, 0.5);
+    }
+
+    .pathfind-button:active {
+      transform: translateY(0);
+    }
+
+    .canvas-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      border-radius: 15px;
+      overflow: hidden;
+      background: radial-gradient(circle at center, rgba(255, 215, 0, 0.1), transparent 70%);
+    }
+
+    #pathfinding-canvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 15px;
+    }
+
+    .path-results {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .path-option {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 15px;
+      border-left: 4px solid;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .path-option.fastest {
+      border-left-color: #22c55e;
+    }
+
+    .path-option.safest {
+      border-left-color: #3b82f6;
+    }
+
+    .path-option.learning {
+      border-left-color: #a855f7;
+    }
+
+    .path-option.creative {
+      border-left-color: #f59e0b;
+    }
+
+    .path-option:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateX(5px);
+    }
+
+    .path-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .path-type {
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .path-metrics {
+      display: flex;
+      gap: 15px;
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    .metric {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .path-steps {
+      margin-top: 15px;
+    }
+
+    .step {
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255, 215, 0, 0.3);
+      border-top: 4px solid #FFD700;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .examples {
+      margin-top: 30px;
+    }
+
+    .example-goal {
+      padding: 10px 15px;
+      background: rgba(255, 215, 0, 0.1);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+    }
+
+    .example-goal:hover {
+      background: rgba(255, 215, 0, 0.2);
+      transform: scale(1.02);
+    }
+
+    @media (max-width: 1200px) {
+      .pathfinding-interface {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        height: auto;
+      }
+
+      .visualization-panel {
+        order: 2;
+        height: 400px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>🧭 Semantic Pathfinding</h1>
+      <p class="subtitle">GPS for Knowledge and Goals - Navigate Your Way to Success</p>
+      <div style="margin-top: 20px;">
+        <a href="index.html" style="color: #FFD700; text-decoration: none; font-weight: 600;">← Back to PKM System</a>
+      </div>
+    </header>
+
+    <div class="pathfinding-interface">
+      <!-- Input Panel -->
+      <div class="input-panel">
+        <h2 class="panel-title">🎯 Goal Navigation</h2>
+
+        <div class="goal-input">
+          <label for="start-goal">Where are you now?</label>
+          <input type="text" id="start-goal" placeholder="e.g., Complete beginner at baking">
+        </div>
+
+        <div class="goal-input">
+          <label for="end-goal">Where do you want to go?</label>
+          <input type="text" id="end-goal" placeholder="e.g., Bake a perfect apple pie">
+        </div>
+
+        <div class="user-context">
+          <h3 style="margin-bottom: 15px; color: #e2e8f0;">Your Context</h3>
+
+          <div class="skill-slider">
+            <label for="skill-level">Skill Level: <span id="skill-value">0.5</span></label>
+            <input type="range" id="skill-level" class="slider" min="0" max="1" step="0.1" value="0.5">
+          </div>
+
+          <div class="skill-slider">
+            <label for="time-available">Time Available: <span id="time-value">Medium</span></label>
+            <input type="range" id="time-available" class="slider" min="1" max="5" step="1" value="3">
+          </div>
+
+          <div class="skill-slider">
+            <label for="risk-tolerance">Risk Tolerance: <span id="risk-value">Medium</span></label>
+            <input type="range" id="risk-tolerance" class="slider" min="1" max="5" step="1" value="3">
+          </div>
+        </div>
+
+        <button class="pathfind-button" onclick="findPaths()">
+          🧭 Find Pathways
+        </button>
+
+        <div class="examples">
+          <h4 style="margin-bottom: 10px; color: #e2e8f0;">Try These Examples:</h4>
+          <div class="example-goal" onclick="loadExample('baking')">
+            🥧 Learn to bake apple pie
+          </div>
+          <div class="example-goal" onclick="loadExample('music')">
+            🎵 Create a hit song
+          </div>
+          <div class="example-goal" onclick="loadExample('business')">
+            🌍 Start international business
+          </div>
+          <div class="example-goal" onclick="loadExample('fitness')">
+            💪 Run a marathon
+          </div>
+        </div>
+      </div>
+
+      <!-- Visualization Panel -->
+      <div class="visualization-panel">
+        <h2 class="panel-title">🗺️ Path Visualization</h2>
+        <div class="canvas-container">
+          <canvas id="pathfinding-canvas"></canvas>
+        </div>
+        <div class="loading" id="loading">
+          <div class="spinner"></div>
+          <p>Calculating optimal pathways...</p>
+        </div>
+      </div>
+
+      <!-- Results Panel -->
+      <div class="results-panel">
+        <h2 class="panel-title">🚀 Pathway Options</h2>
+        <div class="path-results" id="path-results">
+          <p style="text-align: center; opacity: 0.6; margin-top: 50px;">
+            Enter your goals and click "Find Pathways" to see route options
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="semantic-system.js"></script>
+  <script src="semantic-pathfinding-engine.js"></script>
+  <script>
+    // Initialize pathfinding system
+    const semanticSystem = new SemanticSystem();
+    const pathfinder = new SemanticPathfindingEngine(semanticSystem);
+
+    let canvas, ctx;
+    let currentPaths = [];
+
+    // Initialize canvas
+    document.addEventListener('DOMContentLoaded', () => {
+      canvas = document.getElementById('pathfinding-canvas');
+      ctx = canvas.getContext('2d');
+
+      // Set canvas size
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      // Update slider values
+      updateSliderValues();
+
+      // Add event listeners to sliders
+      document.getElementById('skill-level').addEventListener('input', updateSliderValues);
+      document.getElementById('time-available').addEventListener('input', updateSliderValues);
+      document.getElementById('risk-tolerance').addEventListener('input', updateSliderValues);
+    });
+
+    function resizeCanvas() {
+      const container = canvas.parentElement;
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      drawPlaceholder();
+    }
+
+    function updateSliderValues() {
+      const skillLevel = document.getElementById('skill-level').value;
+      const timeAvailable = document.getElementById('time-available').value;
+      const riskTolerance = document.getElementById('risk-tolerance').value;
+
+      document.getElementById('skill-value').textContent = skillLevel;
+
+      const timeLabels = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
+      const riskLabels = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
+
+      document.getElementById('time-value').textContent = timeLabels[timeAvailable - 1];
+      document.getElementById('risk-value').textContent = riskLabels[riskTolerance - 1];
+    }
+
+    function loadExample(type) {
+      const examples = {
+        baking: {
+          start: 'Complete beginner at baking',
+          end: 'Bake a perfect apple pie'
+        },
+        music: {
+          start: 'No music experience',
+          end: 'Create a hit song'
+        },
+        business: {
+          start: 'Employee with business idea',
+          end: 'International business owner'
+        },
+        fitness: {
+          start: 'Couch potato',
+          end: 'Marathon runner'
+        }
+      };
+
+      const example = examples[type];
+      document.getElementById('start-goal').value = example.start;
+      document.getElementById('end-goal').value = example.end;
+    }
+
+    async function findPaths() {
+      const startGoal = document.getElementById('start-goal').value.trim();
+      const endGoal = document.getElementById('end-goal').value.trim();
+
+      if (!startGoal || !endGoal) {
+        alert('Please enter both start and end goals');
+        return;
+      }
+
+      // Show loading
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('path-results').innerHTML = '';
+
+      try {
+        // Get user context
+        const userContext = {
+          skillLevel: parseFloat(document.getElementById('skill-level').value),
+          timeAvailable: parseInt(document.getElementById('time-available').value),
+          riskTolerance: parseInt(document.getElementById('risk-tolerance').value)
+        };
+
+        // Simulate pathfinding (replace with actual pathfinding call)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Generate demo paths
+        const paths = generateDemoPaths(startGoal, endGoal, userContext);
+        currentPaths = paths;
+
+        // Display results
+        displayPaths(paths);
+        visualizePaths(paths);
+
+      } catch (error) {
+        console.error('Pathfinding error:', error);
+        document.getElementById('path-results').innerHTML =
+          '<p style="color: #f87171;">Error finding paths. Please try again.</p>';
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+
+    function generateDemoPaths(start, end, context) {
+      // This is a demo implementation - replace with actual pathfinding engine
+      const paths = [
+        {
+          type: 'fastest',
+          name: 'Speed Route',
+          estimatedTime: '2-4 weeks',
+          difficulty: 0.6,
+          successProbability: 0.75,
+          steps: [
+            'Research fundamentals online',
+            'Practice basic techniques',
+            'Get essential tools/resources',
+            'Follow proven methodology',
+            'Execute with guidance',
+            'Achieve goal'
+          ]
+        },
+        {
+          type: 'safest',
+          name: 'Safe Route',
+          estimatedTime: '2-3 months',
+          difficulty: 0.3,
+          successProbability: 0.95,
+          steps: [
+            'Take comprehensive course',
+            'Practice extensively with feedback',
+            'Build foundational skills',
+            'Master prerequisites',
+            'Apply knowledge systematically',
+            'Achieve goal with confidence'
+          ]
+        },
+        {
+          type: 'learning',
+          name: 'Learning Route',
+          estimatedTime: '3-6 months',
+          difficulty: 0.7,
+          successProbability: 0.85,
+          steps: [
+            'Study theory and principles',
+            'Experiment with variations',
+            'Learn from mistakes',
+            'Develop expertise',
+            'Innovate approaches',
+            'Achieve mastery'
+          ]
+        },
+        {
+          type: 'creative',
+          name: 'Creative Route',
+          estimatedTime: '1-4 months',
+          difficulty: 0.8,
+          successProbability: 0.65,
+          steps: [
+            'Brainstorm unique approaches',
+            'Combine different methods',
+            'Experiment boldly',
+            'Iterate rapidly',
+            'Create novel solution',
+            'Achieve breakthrough'
+          ]
+        }
+      ];
+
+      // Adjust based on user context
+      paths.forEach(path => {
+        path.difficulty = Math.max(0.1, path.difficulty * (2 - context.skillLevel));
+        path.successProbability = Math.min(0.99, path.successProbability * (0.7 + context.skillLevel * 0.3));
+      });
+
+      return paths;
+    }
+
+    function displayPaths(paths) {
+      const resultsContainer = document.getElementById('path-results');
+      resultsContainer.innerHTML = '';
+
+      paths.forEach((path, index) => {
+        const pathElement = document.createElement('div');
+        pathElement.className = `path-option ${path.type}`;
+        pathElement.onclick = () => highlightPath(index);
+
+        pathElement.innerHTML = `
+                    <div class="path-header">
+                        <div class="path-type">${path.name}</div>
+                    </div>
+                    <div class="path-metrics">
+                        <div class="metric">
+                            <span>⏱️</span>
+                            <span>${path.estimatedTime}</span>
+                        </div>
+                        <div class="metric">
+                            <span>📊</span>
+                            <span>${Math.round(path.successProbability * 100)}%</span>
+                        </div>
+                        <div class="metric">
+                            <span>⚡</span>
+                            <span>Difficulty ${Math.round(path.difficulty * 10)}/10</span>
+                        </div>
+                    </div>
+                    <div class="path-steps">
+                        ${path.steps.map(step => `<div class="step">${step}</div>`).join('')}
+                    </div>
+                `;
+
+        resultsContainer.appendChild(pathElement);
+      });
+    }
+
+    function visualizePaths(paths) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = Math.min(canvas.width, canvas.height) * 0.3;
+
+      // Draw paths as connected nodes
+      paths.forEach((path, pathIndex) => {
+        const color = getPathColor(path.type);
+        const steps = path.steps.length;
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([]);
+
+        // Draw path curve
+        ctx.beginPath();
+        for (let i = 0; i < steps; i++) {
+          const angle = (i / (steps - 1)) * Math.PI - Math.PI / 2;
+          const x = centerX + Math.cos(angle) * radius;
+          const y = centerY + Math.sin(angle) * radius + pathIndex * 20 - 30;
+
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+
+          // Draw node
+          ctx.save();
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(x, y, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        ctx.stroke();
+      });
+
+      // Draw start and end points
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.arc(centerX - radius, centerY, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath();
+      ctx.arc(centerX + radius, centerY, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Labels
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('START', centerX - radius, centerY - 20);
+      ctx.fillText('GOAL', centerX + radius, centerY - 20);
+    }
+
+    function getPathColor(type) {
+      const colors = {
+        fastest: '#22c55e',
+        safest: '#3b82f6',
+        learning: '#a855f7',
+        creative: '#f59e0b'
+      };
+      return colors[type] || '#ffffff';
+    }
+
+    function highlightPath(index) {
+      // Remove previous highlights
+      document.querySelectorAll('.path-option').forEach(el => {
+        el.style.background = 'rgba(255, 255, 255, 0.05)';
+      });
+
+      // Highlight selected path
+      const pathElements = document.querySelectorAll('.path-option');
+      pathElements[index].style.background = 'rgba(255, 215, 0, 0.2)';
+
+      // Redraw visualization with highlighted path
+      visualizeHighlightedPath(index);
+    }
+
+    function visualizeHighlightedPath(highlightIndex) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = Math.min(canvas.width, canvas.height) * 0.3;
+
+      // Draw all paths with reduced opacity
+      currentPaths.forEach((path, pathIndex) => {
+        const color = getPathColor(path.type);
+        const steps = path.steps.length;
+        const isHighlighted = pathIndex === highlightIndex;
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = isHighlighted ? 5 : 2;
+        ctx.globalAlpha = isHighlighted ? 1 : 0.3;
+
+        ctx.beginPath();
+        for (let i = 0; i < steps; i++) {
+          const angle = (i / (steps - 1)) * Math.PI - Math.PI / 2;
+          const x = centerX + Math.cos(angle) * radius;
+          const y = centerY + Math.sin(angle) * radius + pathIndex * 20 - 30;
+
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+
+          // Draw node
+          ctx.save();
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(x, y, isHighlighted ? 8 : 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        ctx.stroke();
+      });
+
+      ctx.globalAlpha = 1;
+
+      // Draw start and end points
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.arc(centerX - radius, centerY, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath();
+      ctx.arc(centerX + radius, centerY, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Labels
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('START', centerX - radius, centerY - 20);
+      ctx.fillText('GOAL', centerX + radius, centerY - 20);
+    }
+
+    function drawPlaceholder() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+
+      // Draw placeholder text
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.font = '18px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🧭 Path visualization will appear here', centerX, centerY);
+      ctx.fillText('Enter goals and click "Find Pathways"', centerX, centerY + 30);
+    }
+  </script>
+</body>
+
+</html>

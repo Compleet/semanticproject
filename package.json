@@ -1,0 +1,16 @@
+{
+  "name": "pkm-semantic-vault-tests",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test --reporter=list"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  },
+  "dependencies": {
+    "cheerio": "^1.1.2",
+    "node-fetch": "^2.7.0",
+    "puppeteer": "^24.16.2"
+  }
+}

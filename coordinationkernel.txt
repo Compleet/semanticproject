@@ -1,0 +1,1994 @@
+
+---
+
+# **Coordination Kernel — Developer & Philosophy Overview (0 → 1.2)**
+
+---
+
+## **Purpose & Philosophy**
+
+The Coordination Kernel is a **semantic process ledger** for teams.
+It treats *coordination* with the same rigor that blockchains treat *state* — but instead of securing balances, it secures **decision and execution flow**.
+
+The kernel is designed to:
+
+* **Ingest** events from diverse tools (code, chat, tickets, finance).
+* **Normalize** them into a **shared ontology** representing the essential stages of collaborative work.
+* **Close loops** (`Friction → Option → Experiment → Decision → Contribution`) with human-in-the-loop guardrails.
+* **Render insights** natively inside an existing project platform (OpenProject as default) so no new UI is required.
+* **Quantify coordination fitness** over time, allowing the team to improve *how they work* as well as *what they work on*.
+
+The guiding principles:
+
+1. **Ontology as Source of Truth**
+   All inputs are mapped into a minimal, expressive, versionable object model.
+2. **Native Interface Embedding**
+   Users see metrics and actions in the tools they already use.
+3. **Human-in-the-Loop**
+   Automation proposes; humans approve.
+4. **Attribution as First-Class Data**
+   Every action is signed, auditable, and subject to decay.
+5. **Resilience by Design**
+   Versioned schemas, rollback scripts, and audit logs from day one.
+
+---
+
+## **High-Level Build Plan**
+
+1. **Base Platform:**
+
+   * **Host UI**: OpenProject (latest stable, community edition).
+
+     * We write dashboards via `/api/v3/grids`.
+   * **Coordination Kernel**: containerized micro-services running alongside OpenProject.
+
+2. **Core Tech Stack:**
+
+   * **Runtime:** Python (FastAPI) for services; Node.js optional for bots.
+   * **Data:** Postgres (ontology storage), Redis (queues/streams).
+   * **Messaging:** Kafka/NATS (optional for scale; Redis streams if minimal).
+   * **Secrets:** HashiCorp Vault or Doppler.
+   * **Observability:** Prometheus + Grafana, OpenTelemetry tracing.
+   * **APIs:** REST (OpenProject), webhooks, JSON-RPC (if Odoo alternative).
+
+3. **Key Deliverable:**
+
+   * A running sidecar kernel that:
+
+     * Connects to event sources.
+     * Maintains normalized ontology in Postgres.
+     * Manages loops and metrics.
+     * Writes native dashboards into OpenProject.
+
+---
+
+## **0) Definition of Done**
+
+The coordination kernel is operational with:
+
+1. **Active Event Ingestion** from ≥3 sources (code, chat, ticketing).
+2. **Ontology Normalization** into `Friction`, `Option`, `Experiment`, `Decision`, `Contribution`, `Ritual`, `Context`.
+3. **Functional Loops** running with attribution, decay, and approvals.
+4. **Embedded Dashboards** in OpenProject showing:
+
+   * Loop health.
+   * Experiment board.
+   * Decision ledger.
+   * Contribution map.
+5. **Ritual Automation** triggered via bot.
+6. **Metrics Pipeline** producing loop latency, decision quality, attribution agreement, and ROI.
+7. **Resilience Layer** with versioned schemas, audit logs, rollback, scoped tokens.
+
+---
+
+## **1) Architectural Overview**
+
+### **1.1 Core Principles**
+
+| Principle                    | What it Means for Dev                                             | Acceptance Criteria                            |
+| ---------------------------- | ----------------------------------------------------------------- | ---------------------------------------------- |
+| Ontology-Centric Integration | Single semantic layer for all data; Postgres + schema versioning. | 100% of persisted objects match ontology spec. |
+| Native Interface Embedding   | Dashboard composer writes directly to OpenProject grids.          | Users never need a separate dashboard UI.      |
+| Human-in-the-Loop            | Policy tiers (Auto, Propose, Escalate) determine execution.       | No destructive action without human approval.  |
+| Attribution-First            | Signed actor/service IDs for every action/event.                  | Ledger integrity check passes daily.           |
+| Resilience from Start        | Idempotent ops, rollback scripts, audit logging in first commit.  | Full recovery from snapshot <15 min.           |
+
+---
+
+### **1.2 Core Components (Containerized Services)**
+
+**1. Event Ingestors**
+
+* Sources: GitHub/GitLab, Slack/Matrix, OpenProject, finance, calendars.
+* Supports webhooks + API polling.
+* Annotates each event: `source_system`, `source_id`, `received_at`, raw payload.
+
+**2. Normalizer**
+
+* Maps raw events → ontology objects.
+* Deduplicates via (`source_system`, `source_id`, hash).
+* Resolves identities to canonical `Identity` table.
+* Outputs include `schema_version`, `hash`, `created_at`.
+
+**3. Policy & Credence Engine**
+
+* Policy tiers: `AUTO`, `PROPOSE`, `ESCALATE`.
+* Credence: non-transferable score w/ decay + peer validation signals.
+* TBAR triage: computes priority from Tension, Boundary, Attractor, Resolution.
+
+**4. Coordinator Agent**
+
+* Drives loop progression:
+
+  * Friction → Option proposals.
+  * Option → Experiment scaffolding.
+  * Experiment → Decision drafts.
+* Updates dashboards when ontology state changes.
+* Logs all actions in Audit Ledger.
+
+**5. Dashboard Composer**
+
+* Converts ontology state → platform-native grids/views.
+* Triggers refresh on event change or scheduled interval.
+* Widget types: tables, KPIs, charts, sparklines.
+
+**6. Audit & Ledger**
+
+* Append-only, hashed, signed entries for proposals/approvals/executions.
+* Daily integrity check.
+
+**7. Secrets & Access**
+
+* Scoped tokens per service.
+* Vault storage + monthly rotation.
+
+---
+
+Alright — here’s **Section 2: Ontology** formalized for developers, keeping the **semantic clarity** from the philosophical side but with **table-ready definitions** so you can hand this to a backend engineer and get a working schema.
+
+---
+
+## **2) Ontology Specification**
+
+**Purpose:**
+The ontology is the **shared semantic layer** that all events are normalized into.
+It is minimal (only essential objects), expressive (can describe any coordination event), and **versionable** (every record includes schema metadata).
+
+**Design Notes:**
+
+* All objects must include:
+
+  * `schema_version` (integer, starting at 1)
+  * `created_at` (UTC timestamp)
+  * `supersedes` (nullable, FK to previous record ID if updated)
+  * `hash` (SHA256 hash of canonical JSON payload)
+* IDs are UUIDv4 for global uniqueness.
+* Foreign keys are **logical**, not physical where cross-platform (e.g., `identity_id` can map to multiple source accounts).
+
+---
+
+### **2.1 Core Entities**
+
+---
+
+#### **2.1.1 Identity**
+
+Represents a person, bot, or system.
+
+| Field             | Type      | Notes                                                    |
+| ----------------- | --------- | -------------------------------------------------------- |
+| `id`              | UUID      | Primary key                                              |
+| `display_name`    | TEXT      | Human-readable name                                      |
+| `roles`           | JSONB     | List of role strings (e.g., `"developer"`, `"reviewer"`) |
+| `did`             | TEXT      | Optional W3C DID                                         |
+| `source_accounts` | JSONB     | `{ system: "github", account_id: "alice" }` mappings     |
+| `credence`        | FLOAT     | Current decayed credence score                           |
+| `schema_version`  | INT       | Ontology version                                         |
+| `created_at`      | TIMESTAMP | UTC                                                      |
+| `hash`            | TEXT      | SHA256 hash of payload                                   |
+
+---
+
+#### **2.1.2 Context**
+
+Describes the scope in which an event occurred.
+
+| Field            | Type      | Notes                |
+| ---------------- | --------- | -------------------- |
+| `id`             | UUID      | Primary key          |
+| `project`        | TEXT      | Project name/key     |
+| `repo`           | TEXT      | Optional repo ID     |
+| `customer`       | TEXT      | Optional customer ID |
+| `environment`    | TEXT      | dev/staging/prod     |
+| `schema_version` | INT       | Ontology version     |
+| `created_at`     | TIMESTAMP | UTC                  |
+| `hash`           | TEXT      | SHA256 hash          |
+
+---
+
+#### **2.1.3 Friction**
+
+Represents a coordination problem, blocker, or inefficiency.
+
+| Field            | Type      | Notes                                                              |
+| ---------------- | --------- | ------------------------------------------------------------------ |
+| `id`             | UUID      | Primary key                                                        |
+| `when`           | TIMESTAMP | When friction observed                                             |
+| `who`            | UUID      | FK → `Identity`                                                    |
+| `context`        | UUID      | FK → `Context`                                                     |
+| `symptom`        | TEXT      | Short description                                                  |
+| `tbar`           | JSONB     | `{ tension: 0.8, boundary: 0.6, attractor: 0.7, resolution: 0.3 }` |
+| `links`          | JSONB     | Related artifacts (issues, PRs)                                    |
+| `state`          | ENUM      | `open`, `triaged`, `in_progress`, `resolved`                       |
+| `credence`       | FLOAT     | Friction credibility score                                         |
+| `source`         | TEXT      | System name                                                        |
+| `schema_version` | INT       | Ontology version                                                   |
+| `created_at`     | TIMESTAMP | UTC                                                                |
+| `hash`           | TEXT      | SHA256 hash                                                        |
+
+---
+
+#### **2.1.4 Option**
+
+Potential intervention for resolving a Friction.
+
+| Field            | Type      | Notes                                                  |
+| ---------------- | --------- | ------------------------------------------------------ |
+| `id`             | UUID      | PK                                                     |
+| `from_friction`  | UUID      | FK → `Friction`                                        |
+| `description`    | TEXT      | Detailed intervention plan                             |
+| `expected_delta` | JSONB     | `{ metric: "lead_time", change: -0.25 }`               |
+| `cost`           | FLOAT     | Estimated cost in person-hours or currency             |
+| `dependencies`   | JSONB     | List of other Option IDs                               |
+| `owner`          | UUID      | FK → `Identity`                                        |
+| `status`         | ENUM      | `draft`, `approved`, `rejected`, `in_progress`, `done` |
+| `schema_version` | INT       | Ontology version                                       |
+| `created_at`     | TIMESTAMP | UTC                                                    |
+| `hash`           | TEXT      | SHA256 hash                                            |
+
+---
+
+#### **2.1.5 Experiment**
+
+Tests an Option to validate its value.
+
+| Field            | Type      | Notes                                          |
+| ---------------- | --------- | ---------------------------------------------- |
+| `id`             | UUID      | PK                                             |
+| `option_id`      | UUID      | FK → `Option`                                  |
+| `hypothesis`     | TEXT      | Experiment statement                           |
+| `kpi`            | TEXT      | Metric being measured                          |
+| `design`         | JSONB     | Experimental setup parameters                  |
+| `start`          | TIMESTAMP | UTC                                            |
+| `end`            | TIMESTAMP | UTC                                            |
+| `data_refs`      | JSONB     | Links to raw data                              |
+| `outcome`        | JSONB     | `{ effect_size: 0.15, conf: 0.9 }`             |
+| `status`         | ENUM      | `planned`, `running`, `completed`, `cancelled` |
+| `reviewer`       | UUID      | FK → `Identity`                                |
+| `schema_version` | INT       | Ontology version                               |
+| `created_at`     | TIMESTAMP | UTC                                            |
+| `hash`           | TEXT      | SHA256 hash                                    |
+
+---
+
+#### **2.1.6 Decision**
+
+Authoritative selection or rejection of an Option based on evidence.
+
+| Field              | Type      | Notes                                      |
+| ------------------ | --------- | ------------------------------------------ |
+| `id`               | UUID      | PK                                         |
+| `inputs`           | JSONB     | List of Option/Experiment IDs considered   |
+| `rationale`        | TEXT      | Decision justification                     |
+| `rule_base`        | JSONB     | Policy rules applied                       |
+| `approvers`        | JSONB     | List of Identity IDs                       |
+| `status`           | ENUM      | `draft`, `approved`, `rejected`, `revisit` |
+| `reversion_window` | INTERVAL  | Time allowed for reversal                  |
+| `schema_version`   | INT       | Ontology version                           |
+| `created_at`       | TIMESTAMP | UTC                                        |
+| `hash`             | TEXT      | SHA256 hash                                |
+
+---
+
+#### **2.1.7 Contribution**
+
+Recognized work toward a Decision or project goal.
+
+| Field              | Type      | Notes                                   |
+| ------------------ | --------- | --------------------------------------- |
+| `id`               | UUID      | PK                                      |
+| `actor`            | UUID      | FK → `Identity`                         |
+| `artifact`         | TEXT      | Work product reference                  |
+| `effort`           | FLOAT     | Hours or effort points                  |
+| `impact_proxies`   | JSONB     | `{ metric: "lead_time", delta: -0.25 }` |
+| `peer_validations` | JSONB     | List of `{ validator_id, value }`       |
+| `credence`         | FLOAT     | Derived score from validations          |
+| `decay`            | FLOAT     | Current decay multiplier                |
+| `schema_version`   | INT       | Ontology version                        |
+| `created_at`       | TIMESTAMP | UTC                                     |
+| `hash`             | TEXT      | SHA256 hash                             |
+
+---
+
+#### **2.1.8 Ritual**
+
+Scheduled coordination cadence or meeting.
+
+| Field                | Type      | Notes                |
+| -------------------- | --------- | -------------------- |
+| `id`                 | UUID      | PK                   |
+| `cadence`            | INTERVAL  | Frequency            |
+| `agenda`             | JSONB     | List of agenda items |
+| `required_artifacts` | JSONB     | List of needed IDs   |
+| `quorum`             | INT       | Minimum participants |
+| `facilitator`        | UUID      | FK → `Identity`      |
+| `outcomes`           | JSONB     | Summarized outcomes  |
+| `schema_version`     | INT       | Ontology version     |
+| `created_at`         | TIMESTAMP | UTC                  |
+| `hash`               | TEXT      | SHA256 hash          |
+
+---
+
+### **2.2 Ontology Relationships**
+
+* **Identity** 1\:N **Contribution**
+* **Friction** 1\:N **Option**
+* **Option** 1\:N **Experiment**
+* **Experiment** 1\:N **Decision** (via `inputs`)
+* **Ritual** ↔ multiple object types (as agenda items)
+
+---
+
+### **2.3 TBAR Integration**
+
+* Stored as JSONB in `friction.tbar`.
+* Used in triage algorithm to calculate `priority_score`.
+* All TBAR fields normalized 0–1.
+
+---
+
+Alright — here’s **Section 3: Algorithms** in full **developer-spec format**, matching the ontology style so implementation is direct.
+
+---
+
+## **3) Algorithm Specifications**
+
+---
+
+### **3.1 Credence Calculation**
+
+**Purpose:**
+Assign each actor a **non-transferable, decaying trust score** based on validated contributions and loop participation.
+
+**Inputs:**
+
+* `actor_id` (UUID)
+* Historical **signals** from Contributions, Experiments, and Rituals:
+
+  * `peer_validations` (positive/negative)
+  * `successful_experiments` (completion with positive outcome)
+  * `reverted_decisions_avoided`
+  * `ritual_participation` (on-time attendance)
+
+**Config Parameters:**
+
+* `w_i`: weight per signal type (FLOAT)
+* `λ`: decay constant (FLOAT; weekly half-life ≈ 0.099 per day)
+
+**Formula:**
+
+$$
+\text{Credence}_a(t) = \sum_i w_i \cdot s_i(a,t) \cdot e^{-\lambda \cdot \Delta t_i}
+$$
+
+**Outputs:**
+
+* Updated `credence` field in `Identity` table.
+
+**Pseudocode:**
+
+```python
+def calculate_credence(actor_id, signals, weights, decay_lambda):
+    score = 0
+    for signal_type, events in signals.items():
+        for event in events:
+            delta_t = (now() - event.timestamp).days
+            score += weights[signal_type] * event.value * math.exp(-decay_lambda * delta_t)
+    return round(score, 4)
+```
+
+**Acceptance Criteria:**
+
+* Credence updates run nightly.
+* Decay is applied per event, not globally.
+
+---
+
+### **3.2 TBAR Triage**
+
+**Purpose:**
+Prioritize `Friction` objects for Option generation.
+
+**Inputs:**
+
+* `tbar`: `{ tension, boundary, attractor, resolution }` in \[0, 1]
+* `τ`: temporal pressure (FLOAT; normalized urgency factor)
+* Weights: `α, β, γ, δ, η` (configurable per team)
+
+**Formula:**
+
+$$
+P = \alpha T + \beta B + \gamma A + \delta R + \eta \tau
+$$
+
+**Outputs:**
+
+* `priority_score` (FLOAT, 0–1)
+* Sorted queue for `Option` creation.
+
+**Pseudocode:**
+
+```python
+def tbar_priority(tbar, tau, weights):
+    T, B, A, R = tbar['tension'], tbar['boundary'], tbar['attractor'], tbar['resolution']
+    α, β, γ, δ, η = weights
+    return round(α*T + β*B + γ*A + δ*R + η*tau, 4)
+```
+
+**Acceptance Criteria:**
+
+* Frictions with `priority_score >= threshold` auto-generate Option proposals within 24h.
+* Threshold configurable (default: 0.75).
+
+---
+
+### **3.3 Experiment Selection (Knapsack-Lite)**
+
+**Purpose:**
+Select optimal set of Experiments per planning cycle under capacity constraints.
+
+**Inputs:**
+
+* `options`: list of candidate experiments with:
+
+  * `expected_delta` (FLOAT; KPI change)
+  * `cost` (FLOAT; hours or points)
+* Capacity: `C` (FLOAT; total effort available)
+* Diversity constraints (optional): max N from same category.
+
+**Objective:**
+
+$$
+\max \sum_k x_k \cdot (\mathbb{E}[\Delta KPI_k] - c_k), \quad \text{s.t.} \sum_k x_k \cdot \text{effort}_k \le C
+$$
+
+**Algorithm:**
+
+* Sort candidates by `(expected_delta - cost) / effort`.
+* Greedy selection until capacity is reached.
+* Apply diversity constraint post-selection.
+
+**Pseudocode:**
+
+```python
+def select_experiments(candidates, capacity):
+    sorted_cands = sorted(candidates, key=lambda c: (c.exp_delta - c.cost) / c.effort, reverse=True)
+    chosen = []
+    total_effort = 0
+    for cand in sorted_cands:
+        if total_effort + cand.effort <= capacity:
+            chosen.append(cand)
+            total_effort += cand.effort
+    return chosen
+```
+
+**Outputs:**
+
+* List of selected experiment IDs.
+
+**Acceptance Criteria:**
+
+* Output list reproducible given same input.
+* Capacity respected 100% of time.
+
+---
+
+### **3.4 Attribution Agreement**
+
+**Purpose:**
+Measure **consensus reliability** of peer validations for Contributions.
+
+**Inputs:**
+
+* `peer_validations`: List of `{ validator_id, value }` (binary or ordinal)
+* Time window: last N days
+* Method: Cohen’s κ for each pair of validators over shared validations.
+
+**Formula:**
+
+$$
+A = \frac{1}{N}\sum_{p} \kappa_p
+$$
+
+Where κ is computed:
+
+$$
+\kappa = \frac{p_o - p_e}{1 - p_e}
+$$
+
+* $p_o$ = observed agreement
+* $p_e$ = expected agreement by chance
+
+**Outputs:**
+
+* `agreement_score` (FLOAT, -1 to 1)
+* Triggers alert if `< threshold` for 2 consecutive periods.
+
+**Pseudocode:**
+
+```python
+from sklearn.metrics import cohen_kappa_score
+
+def attribution_agreement(validations):
+    pairs = get_validator_pairs(validations)
+    kappas = []
+    for v1, v2 in pairs:
+        shared = get_shared_validations(v1, v2, validations)
+        if len(shared) >= 2:
+            vals1, vals2 = zip(*[(s.val1, s.val2) for s in shared])
+            kappas.append(cohen_kappa_score(vals1, vals2))
+    return sum(kappas) / len(kappas) if kappas else 0
+```
+
+**Acceptance Criteria:**
+
+* Agreement calculation runs bi-weekly.
+* Triggered alerts create a `Ritual` for calibration.
+
+---
+
+### **3.5 Loop Latency Metric**
+
+**Purpose:**
+Measure time from `Friction` creation → `Decision` approval.
+
+**Inputs:**
+
+* `friction_id`, timestamps for each stage.
+
+**Formula:**
+
+$$
+\text{latency} = t_{decision.approved} - t_{friction.created}
+$$
+
+**Outputs:**
+
+* `loop_latency` per loop.
+* Median latency chart in dashboard.
+
+**Acceptance Criteria:**
+
+* Latency updates within 1h of stage completion.
+* All loops logged, even incomplete ones (for dropout analysis).
+
+---
+
+### **3.6 Coordination Fitness (Composite)**
+
+**Purpose:**
+Single number summarizing coordination health.
+
+**Formula:**
+
+$$
+CF = z(\text{throughput}) - z(\text{reversions}) + z(\text{adoption}) + z(\text{agreement}) - z(\text{latency})
+$$
+
+Where $z$ is standardized score.
+
+**Inputs:**
+
+* Throughput: loops completed per week.
+* Reversions: % of decisions reversed.
+* Adoption: % of frictions triaged within SLA.
+* Agreement: attribution agreement score.
+* Latency: median loop latency.
+
+**Outputs:**
+
+* `coordination_fitness` (FLOAT).
+* Weekly delta displayed in dashboard.
+
+---
+
+**Section 4: Governance & Safety** in full developer-spec style so it’s implementable without ambiguity.
+
+---
+
+## **4) Governance & Safety Specification**
+
+**Purpose:**
+Ensure all automation and human decision-making operates within clearly defined policy boundaries, with auditability, reversibility, and role-based authority.
+
+---
+
+### **4.1 Policy Tiers**
+
+Defines **execution thresholds** for actions generated by the Coordinator Agent.
+
+| Tier         | Execution Rule                                                                                   | Example Actions                                                                 | Approval Requirements            |
+| ------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- | -------------------------------- |
+| **AUTO**     | Executes immediately if within budget & non-destructive.                                         | Creating a new dashboard widget; tagging a work package.                        | None (log only).                 |
+| **PROPOSE**  | Queued for review; requires approval from ≥1 approver with authority over context boundary.      | Merging low-risk code change; scheduling small experiment.                      | One approval.                    |
+| **ESCALATE** | Queued for review; requires ≥2 approvers from distinct role groups; includes cooling-off period. | Merging high-impact PR; re-prioritizing project goals; large budget allocation. | Two approvals + 24h cooling-off. |
+
+**Implementation Notes:**
+
+* Policy evaluation occurs **before** the Agent enqueues any action.
+* Tier thresholds defined in `policy_rules.yaml` (configurable at runtime).
+
+---
+
+### **4.2 Approval Graph**
+
+**Purpose:**
+Determine approvers dynamically based on the **context boundary** affected by the action.
+
+**Inputs:**
+
+* `context_id` (FK → Context table)
+* `boundary` (list of affected roles or teams)
+* Action `tier` (AUTO, PROPOSE, ESCALATE)
+
+**Logic:**
+
+1. Fetch all `Identity` records with roles matching affected boundary.
+2. For `ESCALATE` tier, ensure **distinct role categories** for each approver.
+3. Assign approvers randomly or by rotation within eligible pool.
+
+**Pseudocode:**
+
+```python
+def select_approvers(context_id, boundary_roles, tier):
+    candidates = get_identities_with_roles(boundary_roles)
+    if tier == 'ESCALATE':
+        return pick_distinct_roles(candidates, count=2)
+    elif tier == 'PROPOSE':
+        return pick_any(candidates, count=1)
+    else:
+        return []
+```
+
+**Acceptance Criteria:**
+
+* Approver assignment logged in Audit Ledger.
+* No action executes without required approvals in ledger.
+
+---
+
+### **4.3 Reversion Windows**
+
+**Purpose:**
+Allow high-impact decisions to be rolled back within a defined time frame.
+
+**Inputs:**
+
+* `decision_id`
+* `reversion_window` (INTERVAL)
+
+**Behavior:**
+
+1. Decision enters `approved` state with expiry timestamp = `approved_at + reversion_window`.
+2. Any eligible approver can trigger rollback before expiry.
+3. Rollback executes automated backout script or enqueues manual revert task.
+4. Post-expiry, rollback requires new approval as separate decision.
+
+**Pseudocode:**
+
+```python
+def revert_decision(decision_id, actor_id):
+    if now() <= decision.reversion_expiry:
+        execute_backout(decision_id)
+        log_rollback(decision_id, actor_id)
+    else:
+        raise Exception("Reversion window expired")
+```
+
+**Acceptance Criteria:**
+
+* 100% of ESCALATE decisions have non-null `reversion_window`.
+* Rollback events logged with reason.
+
+---
+
+### **4.4 Audit Ledger**
+
+**Purpose:**
+Immutable record of all proposals, approvals, rejections, executions, and rollbacks.
+
+**Fields:**
+
+* `id` (UUID)
+* `timestamp` (UTC)
+* `actor_id` (FK → Identity)
+* `action_type` (ENUM: proposal, approval, rejection, execution, rollback)
+* `object_type` (ENUM: friction, option, experiment, decision, contribution, ritual)
+* `object_id` (UUID)
+* `payload_hash` (SHA256)
+* `signature` (Ed25519 or equivalent)
+* `previous_entry_hash` (SHA256; for chain integrity)
+
+**Integrity Rules:**
+
+* Append-only; no UPDATE/DELETE allowed.
+* Chain validation runs daily:
+
+  * For each entry, `previous_entry_hash` matches SHA256 of prior entry payload.
+
+---
+
+### **4.5 PII & Data Privacy Boundaries**
+
+**Rules:**
+
+* All personally identifiable information (PII) stored in analytics views must be anonymized or pseudonymized.
+* Sensitive fields encrypted at rest using AES-256.
+* PII access restricted via RBAC:
+
+  * Default: developers and operators cannot query PII without explicit approval.
+
+---
+
+### **4.6 Secrets Management**
+
+**Requirements:**
+
+* All API tokens stored in secure vault (HashiCorp Vault, Doppler).
+* Access to secrets controlled via role-based policies.
+* Monthly automatic token rotation; immediate revocation available.
+* Secrets injected into services via ephemeral environment variables at runtime (never stored in source code).
+
+---
+
+### **4.7 Safety Fail-Safes**
+
+* **Rate Limits:** Any API write path must enforce per-minute and per-hour limits to prevent runaway automation.
+* **Dry-Run Mode:** Coordinator Agent can run in simulation mode, logging intended actions without execution.
+* **Backpressure Handling:** If queue length > threshold, ingestion rate throttled to prevent system overload.
+
+---
+
+### **4.8 Governance Rituals**
+
+**Purpose:**
+Embed governance into recurring rituals so rules evolve with team needs.
+
+**Examples:**
+
+* **Policy Review** (monthly): Update `policy_rules.yaml` weights and tiers.
+* **Approval Calibration** (quarterly): Review approval graph coverage.
+* **Ledger Integrity Check** (weekly): Verify chain validity and signature matches.
+
+---
+
+Alright — here’s **Section 5: Platform Integration** in dev-spec format, so an engineer can wire the Coordination Kernel into **OpenProject** (or an Odoo alternative) without guessing.
+
+---
+
+## **5) Platform Integration Specification**
+
+**Purpose:**
+Define the exact interaction between the Coordination Kernel and the host platform (OpenProject primary; Odoo as secondary option) for **data ingestion** and **native dashboard rendering**.
+
+---
+
+### **5.1 Host Platform Assumptions**
+
+* **Primary Target:** OpenProject Community Edition, latest stable (tested against API v3).
+* **Alternate Target:** Odoo (latest LTS) via JSON-RPC for UI component generation.
+* **Access Method:** Personal Access Tokens (PAT) with `read/write` scope to projects, work packages, and custom fields.
+* **Deployment Context:** Host platform and Coordination Kernel run on the same Docker network for low-latency API calls.
+
+---
+
+### **5.2 OpenProject API Integration**
+
+#### **5.2.1 Authentication**
+
+* Token type: Personal Access Token
+* Header:
+
+  ```
+  Authorization: Bearer <PAT>
+  Content-Type: application/json
+  ```
+
+---
+
+#### **5.2.2 Read Operations**
+
+Used by **Event Ingestors** to pull host platform events into the ontology.
+
+**Endpoints:**
+
+* **List Work Packages**
+  `GET /api/v3/projects/:id/work_packages`
+  Parameters:
+
+  * `filters[]` for updated\_on ≥ last\_sync
+  * `pageSize=100` for batching
+* **Get Work Package Details**
+  `GET /api/v3/work_packages/:id`
+* **List Users**
+  `GET /api/v3/users`
+* **Custom Fields Metadata**
+  `GET /api/v3/custom_fields`
+
+**Field Mapping Example (Work Package → Ontology.Friction):**
+
+| OpenProject Field  | Ontology Field    |
+| ------------------ | ----------------- |
+| `subject`          | `symptom`         |
+| `assignee`         | `who`             |
+| `project`          | `context.project` |
+| `customField_tbar` | `tbar`            |
+| `status`           | `state`           |
+
+---
+
+#### **5.2.3 Write Operations**
+
+Used by **Dashboard Composer** to render ontology state into native views.
+
+**Dashboards via Grids API:**
+
+* **Create Grid (Dashboard)**
+  `POST /api/v3/grids`
+  Payload:
+
+  ```json
+  {
+    "rowCount": 4,
+    "columnCount": 2,
+    "widgets": [
+      {
+        "identifier": "widget-table",
+        "options": { "queryProps": { /* WP query JSON */ } },
+        "startRow": 1,
+        "endRow": 2,
+        "startColumn": 1,
+        "endColumn": 2
+      },
+      {
+        "identifier": "widget-chart",
+        "options": { "type": "bar", "data": [ /* KPI data */ ] },
+        "startRow": 2,
+        "endRow": 4,
+        "startColumn": 1,
+        "endColumn": 2
+      }
+    ],
+    "_links": {
+      "scope": { "href": "/api/v3/projects/42" }
+    }
+  }
+  ```
+* **Update Grid**
+  `PATCH /api/v3/grids/:id`
+  Replace or modify widget definitions.
+
+---
+
+### **5.3 Dashboard Layouts**
+
+#### **Loop Health Dashboard**
+
+Widgets:
+
+* **KPI Cards:** `loop_latency_median`, `frictions_open_count`, `decision_reversion_rate`
+* **Table:** Top 10 Frictions by TBAR priority
+* **Sparkline:** Weekly Coordination Fitness trend
+
+#### **Experiment Board**
+
+Widgets:
+
+* **Table:** Current Experiments with start/end, KPI, status
+* **Chart:** Expected vs. Actual effect size
+
+#### **Decision Ledger**
+
+Widgets:
+
+* **Table:** Approved decisions with reversion countdowns
+* **Indicator:** Attribution agreement score (red/yellow/green)
+
+#### **Contribution Map**
+
+Widgets:
+
+* **Matrix:** Actor → peer validation counts
+* **KPI Card:** Actor credence
+
+#### **Ritual Calendar**
+
+Widgets:
+
+* **List:** Upcoming rituals with facilitator
+* **History:** Outcomes of last 5 rituals
+
+---
+
+### **5.4 Custom Fields in OpenProject**
+
+To map ontology IDs to native records, pre-create custom fields:
+
+| Name             | Type        | Ontology Mapping      |
+| ---------------- | ----------- | --------------------- |
+| `Ontology ID`    | Text        | Any object’s UUID     |
+| `TBAR Score`     | Text (JSON) | Friction.tbar         |
+| `Credence`       | Float       | Contribution.credence |
+| `Schema Version` | Integer     | schema\_version       |
+
+---
+
+### **5.5 Alternate Target: Odoo Integration**
+
+#### **5.5.1 Authentication**
+
+* JSON-RPC via `/xmlrpc/2/common` and `/xmlrpc/2/object`
+* Requires DB name, username, password.
+
+---
+
+#### **5.5.2 Write Operations**
+
+Used to create native UI for ontology state:
+
+* `ir.ui.view` for XML-defined dashboard layouts
+* `ir.actions.act_window` for dashboard menu items
+
+Example: Creating a list view for `Friction` objects in Odoo:
+
+```python
+models.execute_kw(db, uid, password, 'ir.ui.view', 'create', [{
+  'name': 'friction_list_view',
+  'type': 'tree',
+  'model': 'friction',
+  'arch_base': '<tree><field name="symptom"/><field name="tbar"/></tree>'
+}])
+```
+
+---
+
+### **5.6 Sync Strategy**
+
+* **Inbound (Read)**:
+  Poll API every 60 seconds for updated work packages and activities; de-dupe against last hash.
+* **Outbound (Write)**:
+  Push dashboard updates on ontology state change events; fallback scheduled push every 15 minutes.
+* **Rate Limit Handling:**
+  Batch writes where possible; apply exponential backoff on HTTP 429.
+
+---
+
+### **5.7 Error Handling & Recovery**
+
+* Failed writes:
+
+  * Retry up to 3 times with exponential backoff.
+  * Log in `sync_errors` table with `error_code`, `payload_hash`, and `retry_count`.
+* Inconsistent dashboards (API errors > 24h):
+
+  * Flag in kernel health dashboard.
+  * Queue rebuild job for affected grids/views.
+
+---
+
+Great—continuing with the dev-spec. Here’s **Section 6: Interfaces & Rituals** in an immediately implementable format.
+
+---
+
+## **6) Interfaces & Rituals Specification**
+
+**Purpose:**
+Define user-facing command surfaces (Slack/Matrix bot) and ritual automation that bind humans into the coordination loops without introducing a new UI.
+
+---
+
+### **6.1 Bot Surfaces (Slack & Matrix)**
+
+**Transport Abstraction:**
+
+* Events normalized to:
+
+  ```json
+  {
+    "platform": "slack|matrix",
+    "team_id": "string",
+    "channel_id": "string",
+    "thread_ts": "string|null",
+    "user_id": "string",
+    "text": "string",
+    "command": "string",
+    "args": "string"
+  }
+  ```
+* Replies use same `channel_id` and optionally `thread_ts`.
+
+**Security & Permissions:**
+
+* Bot maps `platform_user_id → Identity.id` via `Identity.source_accounts`.
+* Commands requiring write access validate:
+
+  * Role membership (e.g., `facilitator`, `approver`, `owner`).
+  * Context scoping (project/channel binding).
+* All command executions write to **Audit Ledger**.
+
+**Idempotency:**
+
+* Every command carries `client_request_id` (UUID).
+* Kernel stores `bot_request_log(client_request_id, outcome_hash)` to dedupe retries.
+
+---
+
+### **6.2 Command Catalog**
+
+All commands are prefixed (configurable; default `/ck` for Slack slash and `!ck` for Matrix).
+
+#### **6.2.1 Friction**
+
+**Create**
+
+* Syntax:
+
+  ```
+  /ck friction new "Symptom text" #project-xyz --tbar '{"tension":0.8,"boundary":0.3,"attractor":0.6,"resolution":0.4}' --links PR#123,ISSUE#456
+  ```
+* Minimal syntax:
+
+  ```
+  /ck friction new "Symptom text"
+  ```
+* Request (internal):
+
+  ```json
+  {
+    "type": "friction.create",
+    "symptom": "Symptom text",
+    "context_hint": "project-xyz",
+    "tbar": {"tension":0.8,"boundary":0.3,"attractor":0.6,"resolution":0.4},
+    "links": ["PR#123","ISSUE#456"],
+    "actor_id": "<Identity.uuid>"
+  }
+  ```
+* Response:
+
+  ```
+  ✅ Friction created: FR-2a7f (priority 0.81) → /app/openproject/work_packages/12345
+  ```
+
+**Update TBAR**
+
+```
+/ck friction tbar FR-2a7f --t 0.9 --b 0.4 --a 0.7 --r 0.3
+```
+
+**Resolve**
+
+```
+/ck friction resolve FR-2a7f --note "Fixed by #789"
+```
+
+---
+
+#### **6.2.2 Option**
+
+**Propose**
+
+```
+/ck option propose FR-2a7f "Automate nightly reindex" --owner @alice --cost 6h --expect '{"lead_time":-0.2}'
+```
+
+**Approve/Reject (policy-gated)**
+
+```
+/ck option approve OP-9c31
+/ck option reject OP-9c31 --reason "Conflicts with release freeze"
+```
+
+---
+
+#### **6.2.3 Experiment**
+
+**Launch**
+
+```
+/ck experiment launch OP-9c31 --kpi "lead_time" --design '{"type":"switchback","period_days":3}' --start 2025-08-15
+```
+
+**Status**
+
+```
+/ck experiment status EX-55ad
+```
+
+**Complete**
+
+```
+/ck experiment complete EX-55ad --outcome '{"effect_size":0.18,"conf":0.88}'
+```
+
+---
+
+#### **6.2.4 Decision**
+
+**Draft**
+
+```
+/ck decision draft --inputs OP-9c31,EX-55ad --rationale "Positive switchback, low cost" --tier PROPOSE --revert 72h
+```
+
+**Approve / Escalate**
+
+```
+/ck decision approve DC-04be
+/ck decision escalate DC-04be --note "Cross-team impact"
+```
+
+**Revert (within window)**
+
+```
+/ck decision revert DC-04be --reason "Unexpected error rate spike"
+```
+
+---
+
+#### **6.2.5 Contribution**
+
+**Validate (+1 / −1)**
+
+```
+/ck contrib validate CT-3a12 +1 --note "Substantial refactor, tests added"
+```
+
+---
+
+#### **6.2.6 Rituals**
+
+**List / Join / Start**
+
+```
+/ck ritual list
+/ck ritual join RIT-ff20
+/ck ritual start RIT-ff20
+```
+
+**Record Outcome**
+
+```
+/ck ritual outcome RIT-ff20 --summary "Triaged 12 frictions; 3 options approved"
+```
+
+---
+
+### **6.3 Interactive Modals (Optional but Recommended)**
+
+For Slack (Block Kit) and Matrix (widget modal), provide guided forms:
+
+* **Friction New Modal**
+
+  * Fields: Symptom (text), Project (select), TBAR sliders (0–1), Links (chips).
+* **Experiment Launch Modal**
+
+  * Fields: Option select, KPI select, Design type (A/B, switchback), Start/End.
+
+**Submission Payload Envelope:**
+
+```json
+{
+  "modal_type": "friction.new",
+  "payload": { /* fields */ },
+  "actor_id": "<Identity.uuid>",
+  "client_request_id": "<uuid>"
+}
+```
+
+---
+
+### **6.4 Bot Responses & Error Codes**
+
+**Success Template:**
+
+```
+✅ <action> OK · <object_type> <object_key> · link: <url> · ledger: <ledger_id>
+```
+
+**Error Schema (JSON in logs; concise in chat):**
+
+```json
+{
+  "error_code": "POLICY_DENIED|VALIDATION|NOT_FOUND|RATE_LIMIT|CONFLICT|INTERNAL",
+  "message": "Human-readable summary",
+  "details": { "field": "owner", "issue": "not authorized" }
+}
+```
+
+**Chat Rendering Examples:**
+
+* `⛔ POLICY_DENIED: @bob lacks approver role for boundary: 'payments'.`
+* `⛔ VALIDATION: TBAR values must be 0–1.`
+
+---
+
+### **6.5 Command → Ontology Mapping**
+
+| Command                  | Writes                            | Notes                                   |
+| ------------------------ | --------------------------------- | --------------------------------------- |
+| `friction new`           | `Friction`                        | Computes initial TBAR; enqueues triage. |
+| `option propose`         | `Option`                          | Links to `Friction`; sets owner.        |
+| `experiment launch`      | `Experiment`                      | Validates design JSON.                  |
+| `decision draft/approve` | `Decision`                        | Policy-gated; writes to Ledger.         |
+| `contrib validate`       | `Contribution.peer_validations[]` | Triggers credence recompute.            |
+| `ritual outcome`         | `Ritual.outcomes`                 | Feeds metrics and summaries.            |
+
+---
+
+### **6.6 Ritual Automation**
+
+**Scheduler:** kernel service `ritual-scheduler` (cron-like + event-driven).
+
+* Storage: `ritual_schedule` table
+
+  * `ritual_id` (UUID), `cadence` (cron or ISO8601 interval), `context_id`, `facilitator_id`, `agenda_template` (JSON), `next_run_at` (TIMESTAMP)
+
+**Cadences (defaults, configurable):**
+
+* **Friction Friday (weekly):** Triage top N by TBAR.
+* **Experiment Review (weekly):** Evaluate running/completed experiments.
+* **Decision Forum (on demand):** Triggered by pending approvals count.
+* **Attribution Check (bi-weekly):** Run κ; schedule calibration if `< threshold`.
+
+**Agenda Generation:**
+
+* Templates use handlebars-style tokens resolved at runtime:
+
+  ```json
+  {
+    "title": "Friction Friday – {{project}}",
+    "items": [
+      {"type":"list","source":"frictions.top", "limit":10},
+      {"type":"kpi","metric":"loop_latency_median"},
+      {"type":"action","label":"Approve Options","source":"options.pending"}
+    ]
+  }
+  ```
+* Output is posted as a threaded message with action buttons:
+
+  * “Create Option”, “Assign Owner”, “Approve Decision”, “Open Experiment”
+
+**Calendar Integration (optional):**
+
+* ICS feed per ritual group (`/ics/rituals/{context}.ics`)
+* Links back to thread and OpenProject dashboard.
+
+**Ritual Lifecycle:**
+
+1. **Schedule fires** → bot posts agenda to configured channel.
+2. **Facilitator starts** via `/ck ritual start RIT-...`.
+3. Actions taken in-thread write to ontology.
+4. On **close**, facilitator records outcome:
+
+   * Kernel snapshots metrics deltas and posts summary.
+
+---
+
+### **6.7 Notifications & Subscriptions**
+
+**Subscription Model:**
+
+* `Identity` can `watch` entities (`Friction`, `Option`, `Experiment`, `Decision`).
+* Events generate DM or channel mentions depending on watch type:
+
+  * `state_change`, `approval_needed`, `reversion_expiring`, `experiment_result`.
+
+**Throttle Rules:**
+
+* Collapse bursts (e.g., multiple Option updates) into a single digest within 10 minutes.
+* Respect platform rate limits.
+
+---
+
+### **6.8 Internationalization (i18n)**
+
+* Bot messages run through i18n layer (`en` default).
+* Command keywords remain English; responses localized by user preference where available.
+
+---
+
+### **6.9 Telemetry for Bot & Rituals**
+
+* Emit OpenTelemetry spans for:
+
+  * Command parse → auth check → ontology write → dashboard update.
+* Metrics:
+
+  * `bot_command_latency_ms` (p50/p95)
+  * `ritual_duration_min`
+  * `approval_response_time_min`
+  * `notification_deliveries_total` / `failed_total`
+
+---
+
+### **6.10 Testing & Acceptance**
+
+**Contract Tests (examples):**
+
+* `friction.new` with minimal args → creates `Friction` and posts link in ≤5s.
+* `option.propose` by unauthorized user → `POLICY_DENIED`.
+* `experiment.complete` with malformed outcome JSON → `VALIDATION`.
+* `decision.revert` outside window → `CONFLICT`.
+* Ritual scheduler posts agenda at scheduled time; actions in thread mutate ontology and dashboards.
+
+---
+
+Perfect—here’s **Section 7: Metrics & Evaluation** in dev-spec form, with exact KPI definitions, storage, SQL/materialized views, refresh policy, and dashboard wiring.
+
+---
+
+## **7) Metrics & Evaluation**
+
+**Purpose:**
+Continuously quantify coordination performance and surface actionable signals inside the host platform UI with reproducible, queryable metrics.
+
+---
+
+### **7.1 Metric Canon**
+
+**Core KPIs (required):**
+
+1. **Loop Latency** – time from `Friction.created_at` → `Decision.approved_at` (per loop and median aggregate).
+2. **Adoption Rate** – % of `Friction` triaged (state≠`open`) within SLA (default 48h).
+3. **Decision Reversion Rate** – % of approved `Decision` reverted within its `reversion_window`.
+4. **Attribution Agreement (κ)** – mean pairwise Cohen’s κ over peer validations window (default 14d).
+5. **Experiment ROI** – mean `(actual_effect - expected_effect)` normalized by cost or effort.
+6. **Throughput** – loops completed per week (`Friction→…→Decision`).
+7. **Coordination Fitness (CF)** – composite standardized score:
+   `CF = z(throughput) - z(reversions) + z(adoption) + z(agreement) - z(latency)`
+
+**Supporting Signals:**
+
+* **TBAR Priority Skew** – distribution of `tbar` components among open `Friction`.
+* **Ritual Attendance** – attendance rate per ritual instance.
+* **Approval Response Time** – time from proposal to first approval.
+
+---
+
+### **7.2 Storage & Data Model**
+
+**Tables (metrics layer, separate schema `metrics`):**
+
+* `metrics.baseline`
+
+  * `metric` TEXT PK
+  * `period_start` DATE (week 0 anchor)
+  * `mean` DOUBLE PRECISION
+  * `stddev` DOUBLE PRECISION
+  * Notes: CF uses z-scores computed against rolling or fixed baseline; store week 0 baseline here.
+
+* `metrics.daily_facts`
+
+  * `date` DATE PK, `project` TEXT NULL
+  * `frictions_open` INT
+  * `frictions_triaged_48h` INT
+  * `loops_completed` INT
+  * `median_loop_latency_hours` DOUBLE PRECISION
+  * `decision_reversions` INT
+  * `decisions_approved` INT
+  * `attribution_kappa_mean` DOUBLE PRECISION
+  * `experiment_roi_mean` DOUBLE PRECISION
+  * `ritual_attendance_rate` DOUBLE PRECISION
+  * `approval_response_minutes_p50` DOUBLE PRECISION
+
+* `metrics.weekly_rollups`
+
+  * `week_start` DATE PK, `project` TEXT NULL
+  * Same fields as `daily_facts` but aggregated (sum/avg/median as appropriate).
+  * `coordination_fitness` DOUBLE PRECISION
+  * `delta_cf` DOUBLE PRECISION (vs prior week)
+
+* `metrics.alerts`
+
+  * `id` UUID PK
+  * `metric` TEXT
+  * `context_id` UUID NULL
+  * `severity` ENUM(`info`,`warn`,`crit`)
+  * `message` TEXT
+  * `created_at` TIMESTAMP
+
+**Lineage:**
+Raw → Ontology (`public.*`) → Derived staging views (`stg_*`) → `metrics.daily_facts` → `metrics.weekly_rollups` → Dashboards.
+
+---
+
+### **7.3 Derived Views (staging)**
+
+Create **schema `stg`** with read-only views to simplify metric SQL.
+
+* `stg.loops_completed`
+
+  ```sql
+  CREATE OR REPLACE VIEW stg.loops_completed AS
+  SELECT
+    f.id AS friction_id,
+    f.created_at AS t_friction,
+    d.created_at AS t_decision,
+    EXTRACT(EPOCH FROM (d.created_at - f.created_at))/3600.0 AS latency_hours,
+    COALESCE(ctx.project,'') AS project,
+    date_trunc('day', d.created_at)::date AS date
+  FROM friction f
+  JOIN decision d ON d.inputs @> to_jsonb(ARRAY[f.id])  -- decision considered this friction’s chain
+  LEFT JOIN context ctx ON ctx.id = f.context
+  WHERE d.status = 'approved';
+  ```
+
+* `stg.decisions_reverted`
+
+  ```sql
+  CREATE OR REPLACE VIEW stg.decisions_reverted AS
+  SELECT d.id, d.created_at, r.created_at AS reverted_at
+  FROM decision d
+  JOIN audit_ledger r ON r.object_type='decision' AND r.object_id=d.id AND r.action_type='rollback';
+  ```
+
+* `stg.frictions_triaged_48h`
+
+  ```sql
+  CREATE OR REPLACE VIEW stg.frictions_triaged_48h AS
+  SELECT f.id, f.created_at, a.timestamp AS triaged_at,
+         (a.timestamp - f.created_at) <= INTERVAL '48 hours' AS within_sla,
+         date_trunc('day', f.created_at)::date AS date,
+         COALESCE(ctx.project,'') AS project
+  FROM friction f
+  JOIN audit_ledger a
+    ON a.object_type='friction' AND a.object_id=f.id
+   AND a.action_type IN ('update','execution')  -- state changes
+  LEFT JOIN context ctx ON ctx.id = f.context
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY f.id ORDER BY a.timestamp) = 1; -- first transition
+  ```
+
+* `stg.attribution_kappa_daily` (pre-compute κ)
+  *Implementation detail:* compute in app and write daily; or use PL/Python if enabled.
+  Table to write:
+
+  ```sql
+  CREATE TABLE IF NOT EXISTS metrics.attribution_kappa_daily(
+    date DATE PRIMARY KEY,
+    project TEXT,
+    kappa_mean DOUBLE PRECISION
+  );
+  ```
+
+* `stg.experiment_roi_daily`
+
+  ```sql
+  CREATE OR REPLACE VIEW stg.experiment_roi_daily AS
+  SELECT
+    date_trunc('day', e.end)::date AS date,
+    COALESCE(ctx.project,'') AS project,
+    AVG( ( (e.outcome->>'effect_size')::float - (e.design->>'expected_effect')::float ) 
+        / NULLIF( (e.design->>'cost')::float, 0) ) AS roi_mean
+  FROM experiment e
+  LEFT JOIN option o ON o.id = e.option_id
+  LEFT JOIN friction f ON f.id = o.from_friction
+  LEFT JOIN context ctx ON ctx.id = f.context
+  WHERE e.status = 'completed'
+  GROUP BY 1,2;
+  ```
+
+---
+
+### **7.4 Fact Table Population**
+
+**Daily ETL (00:05 UTC):**
+
+```sql
+-- Loop latency and throughput
+INSERT INTO metrics.daily_facts(date, project, loops_completed, median_loop_latency_hours)
+SELECT date, project,
+       COUNT(*) AS loops_completed,
+       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY latency_hours) AS median_latency
+FROM stg.loops_completed
+WHERE date = CURRENT_DATE - INTERVAL '1 day'
+GROUP BY date, project
+ON CONFLICT (date, project) DO UPDATE
+SET loops_completed = EXCLUDED.loops_completed,
+    median_loop_latency_hours = EXCLUDED.median_loop_latency_hours;
+
+-- Adoption (triaged within 48h)
+INSERT INTO metrics.daily_facts(date, project, frictions_open, frictions_triaged_48h)
+SELECT d, project,
+       COUNT(*) FILTER (WHERE state='open') AS frictions_open,  -- optional if you snapshot states daily
+       SUM(CASE WHEN within_sla THEN 1 ELSE 0 END)
+FROM stg.frictions_triaged_48h
+RIGHT JOIN (
+  SELECT CURRENT_DATE - INTERVAL '1 day' AS d
+) t ON TRUE
+GROUP BY d, project
+ON CONFLICT (date, project) DO UPDATE
+SET frictions_open = EXCLUDED.frictions_open,
+    frictions_triaged_48h = EXCLUDED.frictions_triaged_48h;
+
+-- Decision reversion rate
+INSERT INTO metrics.daily_facts(date, project, decisions_approved, decision_reversions)
+SELECT
+  (CURRENT_DATE - INTERVAL '1 day')::date AS date, project,
+  COUNT(*) FILTER (WHERE status='approved') AS decisions_approved,
+  COUNT(r.id) AS decision_reversions
+FROM decision d
+LEFT JOIN stg.decisions_reverted r ON r.id = d.id
+LEFT JOIN context ctx ON ctx.id = ANY(SELECT f.context FROM option o JOIN friction f ON f.id=o.from_friction WHERE o.id = ANY(SELECT (jsonb_array_elements(d.inputs))::uuid))
+-- ↑ adapt depending on decision.inputs mapping
+GROUP BY project
+ON CONFLICT (date, project) DO UPDATE
+SET decisions_approved = EXCLUDED.decisions_approved,
+    decision_reversions = EXCLUDED.decision_reversions;
+
+-- Attribution κ and ROI (pre-computed tables/views)
+UPDATE metrics.daily_facts df
+SET attribution_kappa_mean = k.kappa_mean
+FROM metrics.attribution_kappa_daily k
+WHERE df.date = k.date AND COALESCE(df.project,'') = COALESCE(k.project,'');
+
+UPDATE metrics.daily_facts df
+SET experiment_roi_mean = r.roi_mean
+FROM stg.experiment_roi_daily r
+WHERE df.date = r.date AND COALESCE(df.project,'') = COALESCE(r.project,'');
+```
+
+---
+
+### **7.5 Weekly Rollups & CF**
+
+**Weekly job (Mondays 00:10 UTC):**
+
+```sql
+INSERT INTO metrics.weekly_rollups(week_start, project, 
+  frictions_open, frictions_triaged_48h, loops_completed, median_loop_latency_hours,
+  decisions_approved, decision_reversions, attribution_kappa_mean, experiment_roi_mean,
+  coordination_fitness, delta_cf)
+WITH w AS (
+  SELECT date_trunc('week', date)::date AS week_start, project,
+         SUM(loops_completed) AS loops_completed,
+         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY median_loop_latency_hours) AS median_latency,
+         SUM(decisions_approved) AS decisions_approved,
+         SUM(decision_reversions) AS decision_reversions,
+         AVG(attribution_kappa_mean) AS kappa_mean,
+         AVG(experiment_roi_mean) AS roi_mean,
+         SUM(frictions_open) AS frictions_open,
+         SUM(frictions_triaged_48h) AS triaged_48h
+  FROM metrics.daily_facts
+  WHERE date >= (CURRENT_DATE - INTERVAL '14 days')  -- capture last week
+  GROUP BY 1,2
+)
+SELECT
+  w.week_start, w.project,
+  w.frictions_open, w.triaged_48h, w.loops_completed, w.median_latency,
+  w.decisions_approved, w.decision_reversions, w.kappa_mean, w.roi_mean,
+  /* CF computation with z-scores from metrics.baseline */
+  (
+    ( (w.loops_completed - b_loops.mean) / NULLIF(b_loops.stddev,0) )
+    - ( ( (w.decision_reversions::float / NULLIF(w.decisions_approved::float,1)) - b_rev.mean) / NULLIF(b_rev.stddev,0) )
+    + ( ( (w.triaged_48h::float / NULLIF(w.frictions_open::float,1)) - b_adopt.mean) / NULLIF(b_adopt.stddev,0) )
+    + ( (w.kappa_mean - b_k.mean) / NULLIF(b_k.stddev,0) )
+    - ( (w.median_latency - b_lat.mean) / NULLIF(b_lat.stddev,0) )
+  ) AS coordination_fitness,
+  NULL::double precision AS delta_cf
+FROM w
+LEFT JOIN metrics.baseline b_loops ON b_loops.metric='throughput'
+LEFT JOIN metrics.baseline b_rev   ON b_rev.metric='reversion_rate'
+LEFT JOIN metrics.baseline b_adopt ON b_adopt.metric='adoption_rate'
+LEFT JOIN metrics.baseline b_k     ON b_k.metric='agreement_kappa'
+LEFT JOIN metrics.baseline b_lat   ON b_lat.metric='median_latency'
+ON CONFLICT (week_start, project) DO UPDATE
+SET coordination_fitness = EXCLUDED.coordination_fitness;
+```
+
+**Delta computation:**
+
+```sql
+UPDATE metrics.weekly_rollups w
+SET delta_cf = w.coordination_fitness - w_prev.coordination_fitness
+FROM metrics.weekly_rollups w_prev
+WHERE w_prev.project IS NOT DISTINCT FROM w.project
+  AND w_prev.week_start = w.week_start - INTERVAL '7 days';
+```
+
+**Baseline initialization (Week 0):**
+Run once to set `metrics.baseline` using first complete week’s stats.
+
+---
+
+### **7.6 Refresh Semantics**
+
+* **Near-real-time counters:**
+
+  * Update **on ontology state change** via event triggers to ephemeral cache (Redis) for bot confirmations and KPIs in chat.
+* **Daily facts:** ETL at **00:05 UTC**.
+* **Weekly rollups/CF:** Mondays **00:10 UTC**.
+* **Backfills:** If ontology migrations add fields, run historical recompute jobs with `--from YYYY-MM-DD`.
+
+**Idempotency:**
+ETL uses `ON CONFLICT DO UPDATE` and **deterministic** windowing (date/week keys).
+
+---
+
+### **7.7 Dashboard Bindings (to Section 5 Grids)**
+
+**Loop Health:**
+
+* KPI cards:
+
+  * `median_loop_latency_hours` (last 7d median)
+  * `frictions_open` (yesterday)
+  * `decision_reversion_rate = decision_reversions/decisions_approved` (last 7d)
+* Table:
+
+  * Top 10 `Friction` by `priority_score` (live from ontology)
+* Sparkline:
+
+  * `coordination_fitness` (last 8 weeks, from `metrics.weekly_rollups`)
+
+**Experiment Board:**
+
+* Table: `Experiment` where `status IN ('running','completed')` with `kpi`, `effect_size`, `conf`.
+* Chart: Expected vs Actual (pull `experiment_roi_mean` and per-experiment outcome).
+
+**Decision Ledger:**
+
+* Table: Decisions `status='approved'` with `reversion_window` + countdown.
+* Indicator: `attribution_kappa_mean` R/Y/G thresholds: `<0.4` Red, `0.4–0.55` Yellow, `≥0.55` Green.
+
+**Contribution Map:**
+
+* Matrix (if supported) or table:
+
+  * `actor`, `peer_validations_count`, `credence` (from `Identity.credence`)
+
+---
+
+### **7.8 Alerts & SLAs**
+
+Create alert rules writing into `metrics.alerts` (and push to bot):
+
+* **Low Agreement:** `kappa_mean < 0.4` for 14d → severity `warn` → schedule “Attribution Calibration” ritual.
+* **Latency Spike:** `median_latency` > (baseline.mean + 2\*stddev) for 7d → `crit`.
+* **Reversion Surge:** rolling 7d reversion rate > 2× baseline → `warn`.
+* **Adoption Drop:** triaged within 48h < 60% for 7d → `warn`.
+
+---
+
+### **7.9 Observability (Kernel Metrics)**
+
+Expose Prometheus metrics:
+
+* `ck_etl_daily_runtime_seconds`
+* `ck_metrics_rows_written_total{table=...}`
+* `ck_dashboard_push_failures_total`
+* `ck_cf_value{project}` gauge
+* `ck_alerts_emitted_total{severity}`
+
+Trace with OpenTelemetry:
+
+* Spans: `etl.daily_facts`, `etl.weekly_rollups`, `dashboard.push`, `cf.compute`
+
+---
+
+### **7.10 Testing & Acceptance**
+
+**Determinism:**
+
+* Re-running ETL for a given date must produce identical `metrics.daily_facts` rows (same inputs).
+
+**Backfill Correctness:**
+
+* Historical recompute on a synthetic dataset validates:
+
+  * Median latency calculation
+  * Reversion rate with/without late rollbacks
+  * CF remains unchanged if baseline and inputs unchanged
+
+**Performance:**
+
+* Daily ETL completes in <60s for ≤1M ontology rows (with proper indexes on `created_at`, `status`, FK IDs).
+
+**Indexing (recommended):**
+
+```sql
+CREATE INDEX ON friction (created_at);
+CREATE INDEX ON decision (status, created_at);
+CREATE INDEX ON audit_ledger (object_type, object_id, action_type, timestamp);
+CREATE INDEX ON experiment (status, end);
+```
+
+---
+
+Awesome — here’s **Section 8: Security & Privacy** as an implementable dev-spec, aligned with UK/EU expectations (GDPR) without getting legalistic. It’s opinionated but stack-agnostic.
+
+---
+
+## **8) Security & Privacy Specification**
+
+**Purpose:**
+Protect identities, artifacts, and coordination signals with defense-in-depth: minimal data capture, strict RBAC, encrypted storage/transport, tamper-evident audit, and fast incident response.
+
+---
+
+### **8.1 Security Objectives & Scope**
+
+* **Confidentiality:** Only authorized roles/services see scoped data.
+* **Integrity:** All changes are signed and tamper-evident (ledger).
+* **Availability:** Kernel degrades gracefully; rate-limit/backpressure everywhere.
+* **Privacy:** Data minimization; pseudonymize analytics; GDPR-aligned controls.
+
+**In scope:** Kernel services, Postgres, Redis/queue, observability, bot integrations, platform APIs (OpenProject/Odoo).
+**Out of scope:** Original source systems’ internal security (GitHub, Slack, etc.).
+
+---
+
+### **8.2 Threat Model (STRIDE → Mitigations)**
+
+| Threat                     | Example                               | Mitigations                                                                                                               |
+| -------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **S**poofing               | Fake webhooks, bot user impersonation | HMAC-signed webhooks; mTLS for internal calls; map `platform_user_id → Identity` + RBAC; OAuth scopes/PAT least-privilege |
+| **T**ampering              | API payload alteration                | TLS 1.2+; request signing; append-only audit ledger with chained hashes + signatures                                      |
+| **R**epudiation            | “I didn’t approve that”               | All actions signed; approvals via TOTP/WebAuthn; immutable ledger                                                         |
+| **I**nformation disclosure | PII leakage via dashboards            | Role-scoped queries; PII redaction in metrics; k-anonymity thresholds; encryption-at-rest                                 |
+| **D**enial of Service      | Event floods, dashboard write storms  | Rate limits; circuit breakers; bounded queues; exponential backoff; WAF on public ingress                                 |
+| **E**levation of privilege | Bot used to bypass approvals          | Policy engine gate; tiered approvals; approver separation of duties; admin actions 4-eyes                                 |
+
+---
+
+### **8.3 RBAC Model**
+
+**Human Roles**
+
+| Role            | Capabilities                                                                      |
+| --------------- | --------------------------------------------------------------------------------- |
+| **Admin**       | Manage policies, roles, secrets references (not secret values), schema migrations |
+| **Operator**    | Deploy/rollback, monitor, rotate tokens, backup/restore                           |
+| **Approver**    | Approve/Reject `PROPOSE/ESCALATE` actions; trigger reverts                        |
+| **Facilitator** | Start/end rituals; record outcomes                                                |
+| **Analyst**     | Read metrics/analytics (pseudonymized), export reports                            |
+| **Viewer**      | Read dashboards only                                                              |
+
+**Service Identities**
+
+| Service      | Scope                                                               |
+| ------------ | ------------------------------------------------------------------- |
+| `ingestor-*` | Read from source APIs/webhooks; write raw events to queue           |
+| `normalizer` | Read queue; write ontology tables                                   |
+| `policy`     | Read ontology; evaluate rules; emit proposals                       |
+| `agent`      | Read proposals; call platform write APIs (within policy)            |
+| `composer`   | Write dashboards (grids/views)                                      |
+| `metrics`    | Read ontology; write `metrics.*`                                    |
+| `audit`      | Append-only ledger writes; verify chains                            |
+| `bot`        | Minimal: create/update limited ontology records; no destructive ops |
+
+**Enforcement:**
+
+* Postgres **RLS (Row Level Security)** by role/schema.
+* API gateway enforces JWT-based service identity + scopes.
+
+---
+
+### **8.4 Secrets, Keys & Token Scopes**
+
+**Vault Policy (example – HashiCorp Vault):**
+
+```hcl
+path "secret/data/ck/*" {
+  capabilities = ["read"]
+}
+
+path "secret/data/ck/openproject" {
+  capabilities = ["read"]
+}
+
+path "transit/sign/ck-ledger" {
+  capabilities = ["update"] # for payload signing
+}
+```
+
+**Key Material**
+
+* **Signing:** Ed25519 for ledger entries (Vault Transit or local HSM).
+* **Encryption-at-rest:** AES-256 (Postgres TDE or disk-level LUKS); field-level for sensitive columns.
+* **TLS:** mTLS between internal services; Let’s Encrypt for public ingress.
+
+**Rotation**
+
+* Tokens/keys rotate **every 30 days**; rotation playbooks scripted.
+* Immediate revoke supported; services fetch tokens just-in-time (short TTL).
+
+**OpenProject PAT Scopes (practical minimum):**
+
+* Read/Write **Work Packages** (project-scoped)
+* Read **Users** (for mapping)
+* Read/Write **Grids** (dashboards)
+* Read **Custom Fields** metadata
+  *(Exact names vary; constrain PAT to specific projects.)*
+
+---
+
+### **8.5 Data Protection & Privacy**
+
+**Data Minimization**
+
+* Store only: ontology fields, minimal identity mapping, hashes/links to source artifacts.
+* Avoid storing raw message bodies unless essential; prefer **hash + pointer**.
+
+**PII Handling**
+
+* Mark PII columns: `identity.display_name`, any emails/usernames.
+* **At-rest encryption** for PII columns.
+* **Analytics**: replace identities with stable pseudonyms; enforce **k-anonymity ≥ 5** in group metrics (suppress small cells).
+
+**Right to Erasure (GDPR)**
+
+* Maintain `erasure_requests` table: `identity_id`, `requested_at`, `status`.
+* Procedure:
+
+  1. Soft-delete or anonymize PII in `Identity` (replace with pseudonym).
+  2. Remove direct PII from Contributions/metrics; keep non-identifying aggregates.
+  3. Keep audit entries but replace actor with irreversible pseudonym (hash with secret salt).
+  4. Recompute affected metrics/materialized views.
+
+**Data Retention**
+
+* Ontology detail: 18 months (configurable).
+* Audit ledger: 7 years (integrity requirement).
+* Metrics rollups: indefinite (no PII).
+
+**DPIA Hooks**
+
+* `privacy_register` table for data categories, purposes, retention, recipients.
+
+---
+
+### **8.6 Network & Infrastructure Hardening**
+
+* **Segmentation:**
+
+  * `public` (webhooks/bot ingress)
+  * `app` (kernel services)
+  * `data` (DB, Vault) – no public egress; only from `app`.
+* **Policies:** Default deny; explicit allow-lists per service.
+* **Containers:**
+
+  * Non-root, read-only filesystems; drop Linux capabilities.
+  * Image signing & verification (Cosign); SBOM (Syft) stored with image.
+  * Dependency pinning; Renovate/Dependabot for updates.
+* **SLSA Target:** Level 2+ (provenance attestation through CI).
+* **Backups:**
+
+  * Encrypted (GPG/Age) DB dumps; offsite storage; quarterly restore drills.
+
+---
+
+### **8.7 API Security (Inbound/Outbound)**
+
+**Inbound (webhooks):**
+
+* Verify signatures (GitHub/Slack): shared secret HMAC; reject if missing/mismatch.
+* Replay protection: store `event_id` with TTL; drop duplicates.
+* Rate-limit per source IP and per token.
+
+**Outbound (platform writes):**
+
+* Respect platform rate limits; exponential backoff.
+* Idempotency keys for dashboard writes (grid hash → request id).
+
+**Policy Gate:**
+
+* All agent-triggered writes pass `policy` check (tier + approvals); hard fail otherwise.
+
+---
+
+### **8.8 Audit, Logging & Monitoring**
+
+**Audit Ledger (already specified in §4.4):**
+
+* Chain validation job daily; alert on break.
+
+**Operational Logs**
+
+* Structure: JSON with fields `service`, `correlation_id`, `actor_id`, `action`, `status`, `latency_ms`.
+* Sensitive fields masked (`***`) before emit.
+
+**Monitoring**
+
+* Prometheus metrics (see §7.9) + alert rules:
+
+  * Spike in `policy_denied_total` (possible misuse)
+  * Increase in `dashboard_push_failures_total`
+  * Drop in `ledger_chain_health == 1`
+
+**SIEM Integration (optional)**
+
+* Forward logs to ELK/Splunk/Cloud SIEM with IP allow-list.
+
+---
+
+### **8.9 Incident Response (IR) Runbook**
+
+**Severities**
+
+* **SEV1:** Data exfiltration suspected or confirmed
+* **SEV2:** Integrity compromise (ledger break), widespread DoS
+* **SEV3:** Contained component failure, minor leakage risk
+
+**Checklist**
+
+1. **Triage:** Assign incident commander; start timeline.
+2. **Contain:** Revoke affected tokens; cordon compromised services; enable read-only mode.
+3. **Preserve:** Snapshot DB & logs; export Vault audit trail.
+4. **Eradicate:** Patch vuln; rotate all secrets; rebuild images from clean provenance.
+5. **Recover:** Validate ledger chain; replay from last good snapshot; re-enable writes.
+6. **Notify:** Stakeholders; regulatory notice path if PII affected (72h rule in EU).
+7. **Postmortem:** Blameless report, action items, due dates.
+
+**IR Hooks**
+
+* `maintenance_mode` flag in API to auto-fail writes with `503` + advisory.
+
+---
+
+### **8.10 Compliance Hooks (GDPR-friendly)**
+
+* **Legal Bases**: Config field per data source (`contract`/`legitimate_interest`), recorded in `privacy_register`.
+* **Consent Signals** (if used): store consent scope + timestamp; enforce in ingestion filters.
+* **Data Processing Agreements**: track processor/sub-processor metadata in `privacy_register`.
+
+*(This is scaffolding for your DPO—engineering must expose toggles/logs.)*
+
+---
+
+### **8.11 Acceptance Criteria & Tests**
+
+**Access Control**
+
+* RLS tests: Analyst cannot read PII columns; Viewer cannot read metrics raw tables.
+* Bot user cannot call `decision.approve` endpoints.
+
+**Encryption**
+
+* Verify PII columns are encrypted-at-rest (readable only within app role).
+* Backups are encrypted and restorable.
+
+**Webhook Security**
+
+* Invalid signature → 401; replayed `event_id` → 409.
+
+**Audit Integrity**
+
+* Chain verification job returns healthy; tampering simulation triggers alert.
+
+**Rotation**
+
+* Secret rotation job rotates OpenProject PAT without downtime (agent picks up new token).
+
+**Privacy**
+
+* Erasure request anonymizes identity fields and re-computes metrics; audit remains pseudonymized.
+
+**Resilience**
+
+* WAF/rate-limit config withstands 10× normal webhook burst without DB saturation (bounded queues).
+
+---
+
+
+
+

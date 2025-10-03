@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PKM Vault - Project Goals Dashboard</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa4b2;--accent:#7dd3fc;--progress:#4ade80;--ambitious:#f97316}
+    html,body{height:100%;margin:0;font-family: Inter, ui-sans-serif, system-ui}
+    body{background:linear-gradient(180deg,#071129 0%, #071b2a 100%); color:#e6eef6}
+    .wrap{max-width:1400px;margin:20px auto;padding:24px}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px}
+    h1{margin:0;font-weight:600;font-size:2rem}
+    .back-btn{background:var(--accent);border:none;padding:8px 16px;border-radius:8px;color:#012;cursor:pointer;font-weight:600;text-decoration:none}
+    .goal-section{margin-bottom:24px;background:rgba(255,255,255,0.02);border-radius:12px;padding:20px}
+    .goal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    .goal-title{font-weight:600;font-size:1.1rem}
+    .goal-progress{font-size:0.9rem;color:var(--muted)}
+    .progress-bar{width:100%;height:24px;background:#1a2332;border-radius:12px;overflow:hidden;position:relative;margin-bottom:12px}
+    .progress-fill{height:100%;background:linear-gradient(90deg,var(--progress) 0%, var(--progress) 80%, var(--ambitious) 80%, var(--ambitious) 100%);transition:width 0.3s ease}
+    .progress-marker{position:absolute;top:0;right:20%;width:2px;height:100%;background:rgba(255,255,255,0.3)}
+  .subgoals{display:grid;grid-template-columns:repeat(auto-fill,minmax(24px,1fr));gap:4px;max-height:0;overflow:hidden;transition:max-height 0.3s ease}
+  .subgoals.expanded{max-height:420px;padding-top:12px}
+  .subgoal{width:24px;height:24px;border-radius:4px;border:1px solid #2a3441;cursor:pointer;position:relative;font-size:10px;display:flex;align-items:center;justify-content:center;user-select:none}
+    .subgoal.done{background:var(--progress);border-color:var(--progress)}
+  .subgoal.pending{background:rgba(255,255,255,0.05)}
+    .subgoal:hover{transform:scale(1.2);z-index:10}
+    .tooltip{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:white;padding:6px 8px;border-radius:4px;font-size:11px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.2s;z-index:100;max-width:200px;text-align:center}
+    .subgoal:hover .tooltip{opacity:1}
+    .toggle-btn{background:transparent;border:1px solid var(--muted);color:var(--muted);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.8rem}
+    .toggle-btn:hover{border-color:var(--accent);color:var(--accent)}
+  /* Modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);display:none;align-items:center;justify-content:center;z-index:500}
+  .modal{background:#0b1626;border:1px solid #1f2d3b;border-radius:14px;max-width:520px;width:92%;padding:24px;box-shadow:0 10px 40px -5px rgba(0,0,0,0.6);position:relative}
+  .modal h2{margin:0 0 6px;font-size:1.15rem}
+  .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;letter-spacing:.5px}
+  .badge.done{background:var(--progress);color:#032109}
+  .badge.pending{background:#253342;color:var(--muted)}
+  .close-btn{position:absolute;top:10px;right:10px;background:transparent;border:1px solid #36506a;color:var(--muted);border-radius:8px;padding:4px 8px;cursor:pointer}
+  .close-btn:hover{color:var(--accent);border-color:var(--accent)}
+  .modal-actions{display:flex;gap:12px;margin-top:18px}
+  .primary-btn{background:var(--accent);color:#012;border:none;padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer}
+  .secondary-btn{background:#142536;color:var(--muted);border:1px solid #274157;padding:8px 14px;border-radius:8px;font-weight:500;cursor:pointer}
+  .secondary-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .primary-btn[disabled]{opacity:.4;cursor:not-allowed}
+  .progress-real{color:var(--muted);font-size:11px;font-style:italic;margin-top:4px}
+  /* Priority Panel */
+  #priorityPanel{background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02));border:1px solid #1f2d3b;padding:18px 20px 16px;border-radius:14px;margin-bottom:34px;box-shadow:0 4px 18px -4px rgba(0,0,0,0.4)}
+  #priorityPanel h2{margin:0 0 4px;font-size:1.15rem;font-weight:600;letter-spacing:.5px}
+  #priorityPanel .meta-line{margin:0 0 14px;color:var(--muted);font-size:12px;display:flex;gap:18px;flex-wrap:wrap}
+  .priority-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+  .priority-item{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid #223547;background:#0b1626;border-radius:10px;cursor:pointer;position:relative;transition:background .2s,border-color .2s}
+  .priority-item:hover{background:#142538;border-color:#31506b}
+  .prio-rank{font-size:11px;font-weight:600;background:var(--accent);color:#012;border-radius:6px;padding:2px 6px;min-width:20px;text-align:center;margin-top:2px}
+  .prio-text{flex:1}
+  .prio-text .title{font-size:13px;font-weight:600;line-height:1.3}
+  .prio-text .path{font-size:11px;color:var(--muted);margin-top:2px}
+  .prio-score{font-size:11px;color:var(--muted);align-self:center}
+  .recompute-btn{background:#142536;border:1px solid #274157;color:var(--muted);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer;margin-left:auto}
+  .recompute-btn:hover{color:var(--accent);border-color:var(--accent)}
+  /* Weight controls */
+  .weights{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+  .w-group{background:#0b1626;border:1px solid #1f2d3b;border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;min-width:130px}
+  .w-group label{font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:6px}
+  .w-group input{width:100%;accent-color:var(--accent)}
+  .export-bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .mini-btn{background:#142536;border:1px solid #274157;color:var(--muted);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer}
+  .mini-btn:hover{color:var(--accent);border-color:var(--accent)}
+  textarea#importArea{width:100%;min-height:120px;margin-top:8px;background:#0b1626;color:#e6eef6;border:1px solid #1f2d3b;border-radius:8px;padding:8px;font-family:monospace;font-size:12px;display:none}
+  .score-tip{position:absolute;right:6px;bottom:4px;font-size:9px;color:var(--muted);opacity:0;transition:opacity .2s}
+  .priority-item:hover .score-tip{opacity:1}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>PKM Semantic Vault - Project Goals</h1>
+      <a href="index.html" class="back-btn">← Back to Vault</a>
+    </header>
+    <section id="priorityPanel" aria-labelledby="priorityHeading">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <h2 id="priorityHeading">Next High-Leverage Tasks</h2>
+        <button class="recompute-btn" id="recomputeBtn" title="Recalculate using current state">Recompute</button>
+      </div>
+      <p class="meta-line" id="priorityMeta">Dynamic ranking of undone subgoals using impact × foundation × cross-cut leverage heuristic.</p>
+      <div class="weights" id="weightsPanel">
+        <div class="w-group"><label>Semantic <span id="w-semantic-val">1.0</span></label><input type="range" id="w-semantic" min="0" max="2" step="0.1" value="1"></div>
+        <div class="w-group"><label>Search <span id="w-search-val">1.0</span></label><input type="range" id="w-search" min="0" max="2" step="0.1" value="1"></div>
+        <div class="w-group"><label>Performance <span id="w-performance-val">1.0</span></label><input type="range" id="w-performance" min="0" max="2" step="0.1" value="1"></div>
+        <div class="w-group"><label>Accessibility <span id="w-accessibility-val">1.0</span></label><input type="range" id="w-accessibility" min="0" max="2" step="0.1" value="1"></div>
+        <div class="w-group"><label>Security <span id="w-security-val">1.0</span></label><input type="range" id="w-security" min="0" max="2" step="0.1" value="1"></div>
+        <div class="w-group"><label>AI / ML <span id="w-ai-val">1.0</span></label><input type="range" id="w-ai" min="0" max="2" step="0.1" value="1"></div>
+      </div>
+      <div class="export-bar">
+        <button class="mini-btn" id="exportJsonBtn">Export JSON</button>
+        <button class="mini-btn" id="exportMdBtn">Export Markdown</button>
+        <button class="mini-btn" id="toggleImportBtn">Import</button>
+        <button class="mini-btn" id="clearStateBtn" title="Clear saved progress & preferences">Reset State</button>
+        <span id="exportStatus" style="font-size:11px;color:var(--muted);"></span>
+      </div>
+      <textarea id="importArea" placeholder="Paste previously exported JSON and press Ctrl+Enter to import"></textarea>
+      <ol class="priority-list" id="priorityList"></ol>
+    </section>
+    <div id="goalsContainer"></div>
+  </div>
+  <div class="modal-overlay" id="goalModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="close-btn" onclick="closeModal()" aria-label="Close">✕</button>
+      <h2 id="modalTitle"></h2>
+      <div id="modalStatus"></div>
+      <p id="modalDesc" style="line-height:1.45"></p>
+      <div class="progress-real" id="modalProgress"></div>
+      <div class="modal-actions">
+        <button id="markDoneBtn" class="primary-btn">Mark Done</button>
+        <button id="markPendingBtn" class="secondary-btn">Mark Pending</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /*
+      Realistic progress model:
+      - Remove optimistic preset percentages.
+      - Track achieved subgoals explicitly via achieved index set.
+      - Compute progress dynamically: achieved / total.
+    */
+    const goals = [
+      {
+        title: "User Interface Excellence",
+        description: "World-class, intuitive, beautiful interface design",
+        subgoals: [
+          { t: "Dark theme implementation", done: true, d: "Implemented base dark theme + gradient background." },
+          { t: "Responsive grid layout", done: true, d: "Two-column layout with wrapping panels." },
+          { t: "Smooth animations", done: false, d: "Introduce subtle fade/scale transitions for panel state changes." },
+          { t: "Color scheme optimization", done: false, d: "Refine token palette accessibility contrast." },
+          { t: "Typography hierarchy", done: false, d: "Define consistent h1–h6 + body scale + line heights." },
+          { t: "Icon consistency", done: false, d: "Adopt icon set (Lucide)." },
+          { t: "Loading states", done: false, d: "Skeleton + spinner for vault loading." },
+          { t: "Error messaging", done: false, d: "Inline error banners for failed fetch/parse." },
+          { t: "Accessibility compliance", done: false, d: "Systematic WCAG pass + aria labels." },
+          { t: "Mobile optimization", done: false, d: "Single-column adaptive breakpoints." },
+          { t: "Touch gestures", done: false, d: "Swipe to open note, pinch zoom." },
+          { t: "Keyboard shortcuts", done: false, d: "Global search ( / ), next note (j), prev note (k)." },
+          { t: "Visual feedback", done: true, d: "Hover highlighting & button affordances shipped." },
+          { t: "Micro-interactions", done: false, d: "Add subtle task check animations." },
+          { t: "Component library", done: false, d: "Abstract buttons/panels into reusable factory." },
+          { t: "Design tokens", done: false, d: "Centralize color / spacing / radius CSS vars expansion." },
+          { t: "Theme switching", done: false, d: "Add light theme toggle with persisted preference." },
+          { t: "Layout customization", done: false, d: "Drag resize panel widths + persistence." },
+          { t: "Zoom controls", done: false, d: "Font scaling UI." },
+          { t: "Panel resizing", done: false, d: "User adjustable section heights." },
+          { t: "Drag and drop", done: false, d: "Reorder notes & tasks via pointer drag." },
+          { t: "Context menus", done: false, d: "Right-click actions for notes / tasks." },
+          { t: "Tooltips system", done: true, d: "Tooltip implemented for goals subgoals." },
+          { t: "Modal dialogs", done: true, d: "Subgoal modal pop-out implemented." },
+          { t: "Notification system", done: false, d: "Toast queue for background operations." },
+          { t: "Progress indicators", done: false, d: "Inline progress for loading vault & parse steps." },
+          { t: "Status badges", done: false, d: "Badges for note type (concept/project/task)." },
+          { t: "Button states", done: true, d: "Hover & active states exist with scaling effect." },
+          { t: "Form validation", done: false, d: "Validate search input patterns / future forms." },
+          { t: "Input masking", done: false, d: "Mask semantic address entry format." },
+          { t: "Auto-complete", done: false, d: "Suggest note links while typing." },
+          { t: "Search highlighting", done: false, d: "Wrap query matches in note previews." },
+          { t: "Filter chips", done: false, d: "Clickable chips for type filters." },
+          { t: "Sort indicators", done: false, d: "Clickable sort toggles with arrow icons." },
+          { t: "Pagination", done: false, d: "Segment large result sets." },
+          { t: "Infinite scroll", done: false, d: "Stream notes as user scrolls." },
+          { t: "Virtual scrolling", done: false, d: "Window large note sets for performance." },
+          { t: "Lazy loading", done: false, d: "Defer parsing heavy notes until viewed." },
+          { t: "Image optimization", done: false, d: "Generate responsive image sizes." },
+          { t: "Font loading", done: false, d: "Preload & fallback strategy." },
+          { t: "Performance monitoring", done: false, d: "Collect paint & interaction metrics." },
+          { t: "Bundle optimization", done: false, d: "Split vendor (yaml) & app code." },
+          { t: "CSS optimization", done: false, d: "Remove unused declarations automatically." },
+          { t: "Animation performance", done: false, d: "GPU-friendly transforms only." },
+          { t: "Memory management", done: false, d: "Release large text buffers on close." },
+          { t: "Browser compatibility", done: false, d: "Cross test Firefox & Safari fallback logic." },
+          { t: "Print styles", done: false, d: "Printable single note layout." },
+          { t: "High contrast mode", done: false, d: "Alternative token set for contrast needs." },
+          { t: "Screen reader support", done: false, d: "ARIA roles & focus order for interactive UI." }
+        ]
+      },
+      {
+        title: "Semantic Addressing System",
+        description: "Robust semantic URI scheme for knowledge linking",
+        subgoals: [
+          { t: "URI scheme design", done:false, d: "Define canonical sem://vault.name/type/id pattern with RFC compliance." },
+          { t: "Namespace hierarchy", done:false, d: "Design layered spaces: sem://vault/concept/, sem://vault/project/, sem://vault/task/, sem://vault/person/" },
+          { t: "Collision detection", done:false, d: "Detect duplicate semantic IDs on vault load with user resolution dialog." },
+          { t: "Auto-generation", done:false, d: "Generate sem addresses from title slug: 'Systems Thinking' → sem://vault/concept/systems-thinking" },
+          { t: "Manual override", done:false, d: "Allow user override with validation against reserved namespaces and format rules." },
+          { t: "Validation rules", done:false, d: "Regex patterns: /^sem:\/\/[a-z][a-z0-9-]+\/[a-z]+\/[a-z0-9-]+$/ with length limits." },
+          { t: "Format consistency", done:false, d: "Normalize case (lowercase), delimiters (hyphens), remove special chars automatically." },
+          { t: "Version control", done:false, d: "Add version suffix scheme: sem://vault/concept/systems-thinking-v2 for major revisions." },
+          { t: "Backup strategy", done:false, d: "Export semantic mapping index to JSON for disaster recovery and migration." },
+          { t: "Migration tools", done:false, d: "Bulk rename/remap tool with dependency analysis and link update propagation." },
+          { t: "Linking syntax", done:false, d: "Support [[sem://vault/concept/systems-thinking]] and short [[concept:systems-thinking]] forms." },
+          { t: "Reference resolution", done:false, d: "Build in-memory index: Map<string, {file, line, type}> for O(1) sem ID → file resolution." },
+          { t: "Circular detection", done:false, d: "Build dependency graph and run cycle detection algorithm during link validation." },
+          { t: "Orphan detection", done:false, d: "Report semantic nodes with zero inbound references for cleanup consideration." },
+          { t: "Link validation", done:false, d: "Validate all sem:// links resolve to existing notes, show broken link report." },
+          { t: "Bidirectional links", done:false, d: "Generate backlinks panel." },
+          { t: "Link types", done:false, d: "Classify link relation type (uses, derives)." },
+          { t: "Link metadata", done:false, d: "Store created/updated timestamps." },
+          { t: "Link suggestions", done:false, d: "Suggest possible connections while editing." },
+          { t: "Auto-linking", done:false, d: "Detect patterns & auto link known sem IDs." },
+          { t: "Semantic inference", done:false, d: "Infer concepts from recurring phrases." },
+          { t: "Ontology mapping", done:false, d: "Map notes to top-level ontology categories." },
+          { t: "Concept hierarchy", done:false, d: "Parent / child concept relationships." },
+          { t: "Relationship types", done:false, d: "Represent influences, contradictions, dependencies." },
+          { t: "Entity recognition", done:false, d: "Tag named entities into semantic graph." },
+          { t: "Disambiguation", done:false, d: "Resolve same label - different entity conflicts." },
+          { t: "Synonyms handling", done:false, d: "Map synonyms to canonical form." },
+          { t: "Aliases support", done:false, d: "Multiple names for single semantic ID." },
+          { t: "Canonical forms", done:false, d: "Stabilize root ID referencing." },
+          { t: "Search integration", done:false, d: "Filter search by semantic namespace." },
+          { t: "Export formats", done:false, d: "Export semantic graph to JSON / Turtle." },
+          { t: "Import validation", done:false, d: "Validate imported semantic graph merges." },
+          { t: "Schema definition", done:false, d: "Formal JSON schema for semantic node." },
+          { t: "Type checking", done:false, d: "Runtime guard for semantic object shape." },
+          { t: "Constraint validation", done:false, d: "Assess uniqueness & referential constraints." },
+          { t: "Performance optimization", done:false, d: "Cache semantic resolution lookups." },
+          { t: "Caching strategy", done:false, d: "Multi-layer caching for semantic index." },
+          { t: "Index building", done:false, d: "Build semantic index on load." },
+          { t: "Query optimization", done:false, d: "Optimize queries for large vaults." },
+          { t: "Batch operations", done:false, d: "Bulk update semantic addresses." },
+          { t: "API endpoints", done:false, d: "Expose semantic operations via API layer." },
+          { t: "Documentation", done:false, d: "Document semantic scheme." },
+          { t: "Examples library", done:false, d: "Provide example sem ID patterns." },
+          { t: "Testing suite", done:false, d: "Validation tests for semantic parsing." },
+          { t: "Error handling", done:false, d: "Graceful fallbacks for invalid sem references." },
+          { t: "Monitoring", done:false, d: "Track semantic queries frequency." },
+          { t: "Analytics", done:false, d: "Aggregate semantic usage stats." },
+          { t: "Usage tracking", done:false, d: "Which semantic nodes are most referenced." },
+          { t: "Performance metrics", done:false, d: "Time to resolve semantic link metric." }
+        ]
+      },
+      {
+        title: "Knowledge Graph Visualization",
+        description: "Interactive, explorable graph of knowledge relationships",
+        subgoals: [
+          { t: "Node positioning", done: true, d: "Initial random placement with iterative force relaxation implemented." },
+          { t: "Force simulation", done: true, d: "Lightweight repulsion + spring attraction physics loop (≈400 iterations)." },
+          { t: "Canvas rendering", done: true, d: "2D canvas draw loop with edges first then nodes + labels on highlight." },
+          { t: "Selection modes", done: true, d: "Click node opens underlying note (selection)." },
+          { t: "Node filtering", done: true, d: "Text filter input narrows visible labels & highlight styling." },
+          { t: "Data export", done: true, d: "Graph JSON export (nodes+edges) via blob download." },
+          { t: "Export options", done: true, d: "Currently JSON; future: SVG / screenshot placeholders." },
+          { t: "Edge routing", done: false, d: "Improve straight lines with curved / bundled edges." },
+          { t: "Clustering algorithms", done: false, d: "Apply community detection to color / group nodes." },
+          { t: "Layout optimization", done: false, d: "Adaptive cooling schedule + energy minimization." },
+          { t: "Zoom controls", done: false, d: "Wheel zoom + pinch with transform matrix." },
+          { t: "Pan controls", done: false, d: "Drag background to offset viewport." },
+          { t: "Multi-select", done: false, d: "Marquee / shift-click multi-node selection." },
+          { t: "Edge filtering", done: false, d: "Filter by relation kind (mention, backlink, etc)." },
+          { t: "Layer management", done: false, d: "Toggle node type layers (concept/project/task)." },
+          { t: "Grouping", done: false, d: "Visual hull / convex grouping for concepts." },
+          { t: "Expansion/collapse", done: false, d: "Progressive reveal: collapse distant clusters." },
+          { t: "Detail panels", done: false, d: "On-node hover card with backlinks & metadata." },
+          { t: "Minimap", done: false, d: "Small overview rectangle with viewport box." },
+          { t: "Overview pane", done: false, d: "Tree / list summary of graph nodes w/ jump." },
+          { t: "Search within graph", done: false, d: "Separate advanced search for semantic fields." },
+          { t: "Highlight paths", done: false, d: "Emphasize shortest or selected relationship path." },
+          { t: "Shortest path", done: false, d: "Compute BFS/ Dijkstra between two nodes." },
+          { t: "Community detection", done: false, d: "Louvain / modularity grouping for clusters." },
+          { t: "Centrality measures", done: false, d: "Degree / betweenness / eigen centrality metrics." },
+          { t: "Node importance", done: false, d: "Composite score combining centrality & recency." },
+          { t: "Edge weights", done: false, d: "Weight edges by reference frequency / context." },
+          { t: "Temporal changes", done: false, d: "Time slider to animate graph evolution." },
+          { t: "Animation system", done: false, d: "Reusable tween utilities for layout transitions." },
+          { t: "Smooth transitions", done: false, d: "Interpolate positions on data updates." },
+          { t: "Loading animations", done: false, d: "Skeleton / shimmer while computing layout." },
+          { t: "Update animations", done: false, d: "Animate node add/remove events." },
+          { t: "Performance optimization", done: false, d: "Spatial hashing / Barnes-Hut optimization." },
+          { t: "WebGL support", done: false, d: "Switch to WebGL for >5k nodes." },
+          { t: "Level of detail", done: false, d: "Simplify visuals at lower zoom levels." },
+          { t: "Culling", done: false, d: "Skip rendering offscreen nodes." },
+          { t: "Instancing", done: false, d: "Batch draw nodes with WebGL instancing." },
+          { t: "Screenshot", done: false, d: "Rasterize canvas & download PNG." },
+          { t: "PDF export", done: false, d: "Vector export via PDF generation lib." },
+          { t: "SVG export", done: false, d: "Generate scalable vector output." },
+          { t: "Sharing features", done: false, d: "Shareable links capturing layout state." },
+          { t: "Embed codes", done: false, d: "IFrame embed snippet for external docs." },
+          { t: "Collaboration", done: false, d: "Real-time multi-user view sync." },
+          { t: "Real-time updates", done: false, d: "Live integrate file changes into graph." },
+          { t: "Version history", done: false, d: "Graph snapshots over time." },
+          { t: "Undo/redo", done: false, d: "Command stack for node reposition / grouping." },
+          { t: "Bookmarks", done: false, d: "Save node focus sets." },
+          { t: "Saved views", done: false, d: "Persist layout & filter presets." }
+        ]
+      },
+      {
+        title: "Advanced Search & Discovery",
+        description: "Intelligent search with semantic understanding",
+        progress: 50,
+        subgoals: [
+          "Full-text search", "Fuzzy matching", "Stemming", "Synonyms", "Stop words",
+          "Boolean operators", "Phrase search", "Wildcard search", "Regex support", "Field search",
+          "Faceted search", "Filter combinations", "Saved searches", "Search history", "Auto-complete",
+          "Search suggestions", "Typo tolerance", "Phonetic matching", "Semantic similarity", "Vector search",
+          "Embedding generation", "Similarity scoring", "Ranking algorithms", "Relevance tuning", "Personalization",
+          "Search analytics", "Query analysis", "Result tracking", "Click-through rates", "Search optimization",
+          "Real-time indexing", "Incremental updates", "Index optimization", "Memory usage", "Query performance",
+          "Distributed search", "Sharding", "Replication", "Failover", "Load balancing",
+          "Search API", "Query DSL", "Result formatting", "Pagination", "Sorting options",
+          "Export results", "Search alerts", "Notifications", "Batch operations"
+        ]
+      },
+      {
+        title: "Personal Knowledge Management",
+        description: "Comprehensive PKM workflow and methodology support",
+        subgoals: [
+          { t: "Persona vault ingestion", done: true, d: "Load ./vault/ sample with 10 markdown notes." },
+          { t: "Semantic ID minting", done: true, d: "Automatic sem: prefix generation for each vault note." },
+          { t: "Backlinks extraction", done: true, d: "Inbound references panel + backlink count in metadata." },
+          { t: "Graph linkage", done: true, d: "Edges inferred from title mentions across notes (graph panel)." },
+          { t: "Task extraction", done: true, d: "Parse - [ ] tasks from project & task notes (already active)." },
+          { t: "Persona overview panel", done: true, d: "Aggregated project/task progress table appended below main UI." },
+          { t: "Research project tracking", done: false, d: "Progress metrics for career-research.md tasks." },
+          { t: "Family project tracking", done: false, d: "Progress metrics for family-management tasks." },
+          { t: "Health habit tracking", done: false, d: "Completion status for health-tasks.md." },
+          { t: "Idea kanban status", done: false, d: "Columns & counts for ideas-kanban.md." },
+          { t: "Travel log enrichment", done: false, d: "Structured timeline & metadata for trips." },
+          { t: "Systems thinking concept curation", done: false, d: "Add definitions & references to concept note." },
+          { t: "Meeting notes linking", done: false, d: "Auto-link meeting note tasks to projects." },
+          { t: "Daily notes", done: false, d: "Template & quick-create for YYYY-MM-DD.md." },
+          { t: "Weekly reviews", done: false, d: "Generate weekly reflection note stub." },
+          { t: "Monthly planning", done: false, d: "Roll-up plan note with goals snapshot." },
+          { t: "Goal tracking", done: false, d: "Link goals dashboard progress into persona panel." },
+          { t: "Ontology category mapping", done: false, d: "Assign each note to ontology facet (identity, research, health, etc)." },
+          { t: "Tri-column layout (ontology/priority/goals)", done: true, d: "Initial static tri-pane rendered in index.html." },
+          { t: "Ontology facet badges", done: false, d: "Show facet pill beside note titles." },
+          { t: "Facet filter chips", done: false, d: "Toggle visibility of ontology groups." },
+          { t: "Contextual priority recompute", done: false, d: "Adjust priority when active note changes." },
+          { t: "Note aging score", done: false, d: "Boost notes not touched recently for resurfacing." },
+          { t: "Staleness indicator", done: false, d: "Visual cue for notes older than 30 days." },
+          { t: "Semantic drift detection", done: false, d: "Flag notes whose content diverges from ontology facet." },
+          { t: "Inline semantic link suggestions", done: false, d: "Recommend links while reading a note." },
+          { t: "Knowledge gap prompts", done: false, d: "Suggest creating bridging notes between weakly connected clusters." },
+          "Spaced repetition", "Flashcards", "Quiz generation", "Progress tracking", "Skill assessment",
+          "Reading lists", "Source management", "Citation tracking", "Bibliography", "Reference formatting",
+          "Research workflow", "Literature review", "Annotation system", "Highlight management", "Extract organization",
+          "Idea capture", "Brainstorming tools", "Mind mapping", "Concept mapping", "Workflow automation",
+          "Template system", "Macro support", "Script integration", "Plugin architecture", "Extension points",
+          "Data import", "Export formats", "Backup automation", "Sync capabilities", "Version control",
+          "Collaboration features", "Sharing controls", "Access permissions", "Team workspaces", "Knowledge bases",
+          "Analytics dashboard", "Usage metrics", "Learning analytics", "Productivity insights"
+        ]
+      },
+      {
+        title: "File System Integration",
+        description: "Seamless integration with local file systems",
+        progress: 70,
+        subgoals: [
+          "File picker API", "Directory watching", "Auto-refresh", "File monitoring", "Change detection",
+          "Metadata extraction", "Frontmatter parsing", "YAML validation", "JSON support", "TOML support",
+          "File format detection", "Encoding detection", "Binary file handling", "Large file support", "Streaming",
+          "Path normalization", "Symlink handling", "Hidden files", "System files", "Permission checks",
+          "Read-only mode", "Write protection", "Backup creation", "Version history", "Conflict resolution",
+          "Batch operations", "Bulk import", "Bulk export", "Mass updates", "Directory operations",
+          "Archive support", "Compression", "Extraction", "Format conversion", "Migration tools",
+          "Cloud integration", "Dropbox sync", "Google Drive", "OneDrive", "iCloud",
+          "Git integration", "Version control", "Branch management", "Merge conflicts", "History tracking",
+          "Performance optimization", "Caching", "Indexing", "Lazy loading", "Background processing",
+          "Error handling", "Recovery tools", "Corruption detection", "Repair utilities"
+        ]
+      },
+      {
+        title: "Markdown Processing Excellence",
+        description: "Advanced Markdown parsing and rendering",
+        progress: 60,
+        subgoals: [
+          "CommonMark compliance", "GitHub flavored", "Extended syntax", "Custom extensions", "Plugin system",
+          "Math rendering", "LaTeX support", "MathJax integration", "KaTeX support", "Formula editing",
+          "Code highlighting", "Language detection", "Custom themes", "Line numbers", "Copy buttons",
+          "Diagram support", "Mermaid integration", "PlantUML", "Graphviz", "Custom diagrams",
+          "Table features", "Sorting", "Filtering", "Formatting", "Cell editing",
+          "Link processing", "Auto-linking", "Link validation", "Preview generation", "Broken link detection",
+          "Image handling", "Lazy loading", "Zoom functionality", "Gallery mode", "Optimization",
+          "Metadata extraction", "Frontmatter", "Custom fields", "Validation", "Schema support",
+          "Performance optimization", "Streaming parsing", "Incremental rendering", "Virtual DOM", "Caching",
+          "Export formats", "HTML export", "PDF generation", "Word export", "Print styles",
+          "Accessibility", "Screen readers", "Keyboard navigation", "Alt text", "Semantic HTML",
+          "Real-time preview", "Split view", "Synchronized scrolling", "Live editing"
+        ]
+      },
+      {
+        title: "Data Architecture & Performance",
+        description: "Scalable, efficient data storage and retrieval",
+        progress: 40,
+        subgoals: [
+          "In-memory database", "IndexedDB storage", "Local caching", "Data compression", "Serialization",
+          "Query optimization", "Index strategies", "Performance monitoring", "Memory management", "Garbage collection",
+          "Schema design", "Data modeling", "Relationship mapping", "Foreign keys", "Constraints",
+          "Transaction support", "ACID compliance", "Rollback", "Commit strategies", "Isolation levels",
+          "Backup strategies", "Export formats", "Import validation", "Data migration", "Schema evolution",
+          "Synchronization", "Conflict resolution", "Merge strategies", "Version control", "Change tracking",
+          "Real-time updates", "Event sourcing", "CQRS patterns", "Message queues", "Event streams",
+          "Security measures", "Encryption", "Access control", "Audit trails", "Privacy protection",
+          "Scalability planning", "Horizontal scaling", "Vertical scaling", "Load balancing", "Partitioning",
+          "Monitoring tools", "Performance metrics", "Query analysis", "Bottleneck detection", "Optimization",
+          "Error handling", "Recovery procedures", "Data validation", "Integrity checks"
+        ]
+      },
+      {
+        title: "Testing & Quality Assurance",
+        description: "Comprehensive testing strategy and implementation",
+        progress: 75,
+        subgoals: [
+          "Unit test coverage", "Integration testing", "End-to-end testing", "Visual regression", "Performance testing",
+          "Load testing", "Stress testing", "Accessibility testing", "Security testing", "Compatibility testing",
+          "Test automation", "CI/CD pipeline", "Continuous testing", "Test reporting", "Coverage metrics",
+          "Mock strategies", "Test data", "Fixtures", "Factories", "Builders",
+          "Snapshot testing", "Component testing", "API testing", "Database testing", "File system testing",
+          "Error simulation", "Chaos testing", "Fault injection", "Recovery testing", "Resilience testing",
+          "User acceptance", "Usability testing", "A/B testing", "Feature flags", "Canary releases",
+          "Monitoring", "Alerting", "Error tracking", "Performance monitoring", "User analytics",
+          "Code quality", "Linting", "Formatting", "Static analysis", "Security scanning",
+          "Documentation", "Test documentation", "API documentation", "User guides", "Developer guides",
+          "Review processes", "Code reviews", "Test reviews", "Security reviews"
+        ]
+      },
+      {
+        title: "Accessibility & Inclusivity",
+        description: "Universal design for all users and abilities",
+        progress: 35,
+        subgoals: [
+          "WCAG compliance", "Screen reader support", "Keyboard navigation", "Focus management", "Skip links",
+          "Color contrast", "High contrast mode", "Dark mode toggle", "Font size scaling", "Zoom support",
+          "Voice navigation", "Speech synthesis", "Audio descriptions", "Captions", "Transcripts",
+          "Motor accessibility", "Click targets", "Gesture alternatives", "Dwell clicking", "Switch navigation",
+          "Cognitive accessibility", "Simple language", "Clear instructions", "Error prevention", "Help text",
+          "Internationalization", "Language support", "RTL languages", "Cultural adaptations", "Locale handling",
+          "Text alternatives", "Alt text", "Aria labels", "Descriptions", "Context",
+          "Navigation aids", "Breadcrumbs", "Site maps", "Search", "Landmarks",
+          "Testing tools", "Automated testing", "Manual testing", "User testing", "Assistive technology",
+          "Documentation", "Accessibility guide", "Best practices", "Training materials", "Compliance reports",
+          "Community feedback", "User research", "Inclusive design", "Universal principles"
+        ]
+      },
+      {
+        title: "Security & Privacy",
+        description: "Robust security measures and privacy protection",
+        progress: 25,
+        subgoals: [
+          "Data encryption", "Local storage security", "HTTPS enforcement", "CSP headers", "XSS prevention",
+          "CSRF protection", "Input validation", "Output sanitization", "SQL injection prevention", "Path traversal protection",
+          "Authentication", "Authorization", "Session management", "Token handling", "Password security",
+          "Privacy controls", "Data minimization", "Consent management", "Cookie policies", "Tracking protection",
+          "Audit logging", "Security monitoring", "Intrusion detection", "Anomaly detection", "Threat intelligence",
+          "Vulnerability scanning", "Penetration testing", "Security assessments", "Code reviews", "Dependency scanning",
+          "Incident response", "Recovery procedures", "Backup security", "Disaster recovery", "Business continuity",
+          "Compliance", "GDPR compliance", "Privacy regulations", "Security standards", "Certification",
+          "User education", "Security awareness", "Best practices", "Phishing protection", "Social engineering",
+          "Secure development", "SSDLC", "Security training", "Threat modeling", "Risk assessment",
+          "Third-party security", "Vendor assessment", "Supply chain security", "Dependency management"
+        ]
+      },
+      {
+        title: "Mobile & Cross-Platform",
+        description: "Seamless experience across all devices and platforms",
+        progress: 20,
+        subgoals: [
+          "Responsive design", "Mobile-first approach", "Touch optimization", "Gesture support", "Swipe actions",
+          "Progressive Web App", "Service workers", "Offline support", "App manifest", "Push notifications",
+          "Native app wrapper", "Cordova integration", "Electron packaging", "Tauri implementation", "Capacitor support",
+          "Platform APIs", "File system access", "Camera integration", "Location services", "Device sensors",
+          "Performance optimization", "Bundle splitting", "Lazy loading", "Image optimization", "Network efficiency",
+          "Platform guidelines", "iOS HIG", "Material Design", "Native patterns", "Platform conventions",
+          "Testing strategy", "Device testing", "Emulator testing", "Cloud testing", "Real device testing",
+          "Distribution", "App stores", "Web deployment", "Update mechanisms", "Version management",
+          "Analytics", "Platform metrics", "Usage patterns", "Performance monitoring", "Crash reporting",
+          "Accessibility", "Platform accessibility", "Assistive technology", "Voice control", "Switch control",
+          "Localization", "Platform languages", "Cultural adaptation", "Regional preferences"
+        ]
+      },
+      {
+        title: "Plugin Architecture & Extensibility",
+        description: "Modular system for community extensions",
+        progress: 15,
+        subgoals: [
+          "Plugin API design", "Extension points", "Hook system", "Event system", "Lifecycle management",
+          "Plugin discovery", "Registry service", "Version management", "Dependency resolution", "Conflict detection",
+          "Sandboxing", "Security model", "Permission system", "Resource limits", "Isolation",
+          "Development tools", "Plugin SDK", "CLI tools", "Boilerplate templates", "Documentation generator",
+          "Testing framework", "Plugin testing", "Mock APIs", "Integration testing", "Compatibility testing",
+          "Distribution system", "Plugin marketplace", "Installation process", "Update mechanism", "Removal process",
+          "Configuration", "Plugin settings", "User preferences", "Schema validation", "Migration support",
+          "Performance", "Lazy loading", "Resource management", "Memory limits", "CPU throttling",
+          "Community features", "Rating system", "Reviews", "Recommendations", "Usage statistics",
+          "Developer support", "Documentation", "Examples", "Tutorials", "Community forum",
+          "Quality assurance", "Code review", "Security audit", "Performance testing", "Compliance checking",
+          "Monetization", "Payment integration", "Licensing", "Revenue sharing"
+        ]
+      },
+      {
+        title: "Collaboration & Sharing",
+        description: "Multi-user collaboration and knowledge sharing",
+        progress: 10,
+        subgoals: [
+          "Real-time collaboration", "Operational transforms", "Conflict resolution", "Merge strategies", "Version control",
+          "User management", "Authentication", "Authorization", "Role-based access", "Permission granularity",
+          "Commenting system", "Threaded discussions", "Reactions", "Mentions", "Notifications",
+          "Sharing controls", "Public sharing", "Private sharing", "Link sharing", "Embed codes",
+          "Team workspaces", "Organization management", "Project segregation", "Access inheritance", "Bulk operations",
+          "Activity feeds", "Change notifications", "Event streams", "Audit trails", "History tracking",
+          "Communication tools", "Chat integration", "Video calls", "Screen sharing", "Voice notes",
+          "Review workflows", "Approval processes", "Change requests", "Review assignments", "Status tracking",
+          "Export capabilities", "Shared exports", "Collaborative reports", "Team dashboards", "Analytics",
+          "Integration APIs", "Webhook support", "Third-party tools", "SSO integration", "Directory services",
+          "Offline collaboration", "Sync mechanisms", "Conflict resolution", "Merge tools", "Recovery procedures",
+          "Privacy controls", "Data governance", "Compliance tracking", "Retention policies"
+        ]
+      },
+      {
+        title: "Content Creation Tools",
+        description: "Rich content creation and editing capabilities",
+        progress: 50,
+        subgoals: [
+          "WYSIWYG editor", "Markdown editor", "Split view", "Live preview", "Syntax highlighting",
+          "Template system", "Content blocks", "Reusable components", "Snippet library", "Macro support",
+          "Media handling", "Image upload", "Video embedding", "Audio clips", "File attachments",
+          "Drawing tools", "Sketching", "Diagramming", "Annotation", "Markup tools",
+          "Table editor", "Spreadsheet integration", "Chart creation", "Graph generation", "Data visualization",
+          "Code editing", "Syntax highlighting", "Auto-completion", "Error detection", "Formatting",
+          "Mathematical notation", "Formula editor", "Equation rendering", "Scientific notation", "Symbol library",
+          "Citation management", "Reference formatting", "Bibliography generation", "Source tracking", "Link validation",
+          "Version control", "Change tracking", "Revision history", "Diff visualization", "Rollback capabilities",
+          "Collaboration features", "Real-time editing", "Comments", "Suggestions", "Review mode",
+          "Export options", "Multiple formats", "Custom styling", "Print layouts", "Publication ready",
+          "Automation", "Auto-save", "Smart formatting", "Content suggestions", "Grammar checking"
+        ]
+      },
+      {
+        title: "Analytics & Insights",
+        description: "Data-driven insights into knowledge patterns",
+        progress: 30,
+        subgoals: [
+          "Usage analytics", "Page views", "Time spent", "User behavior", "Navigation patterns",
+          "Content analytics", "Popular content", "Engagement metrics", "Sharing statistics", "Growth patterns",
+          "Knowledge metrics", "Connection density", "Orphaned content", "Cluster analysis", "Topic modeling",
+          "Learning analytics", "Progress tracking", "Skill assessment", "Knowledge gaps", "Recommendation engine",
+          "Performance metrics", "Load times", "Rendering performance", "Memory usage", "Network efficiency",
+          "User insights", "Demographics", "Preferences", "Feedback analysis", "Satisfaction surveys",
+          "Predictive analytics", "Trend analysis", "Forecasting", "Anomaly detection", "Pattern recognition",
+          "Custom dashboards", "Widget system", "Personalization", "Drill-down capabilities", "Export options",
+          "Real-time monitoring", "Live metrics", "Alert system", "Threshold monitoring", "Notification rules",
+          "Data visualization", "Charts", "Graphs", "Heatmaps", "Network diagrams",
+          "Reporting system", "Automated reports", "Scheduled delivery", "Custom formats", "Data export",
+          "Privacy compliance", "Data anonymization", "Consent management", "Opt-out mechanisms"
+        ]
+      },
+      {
+        title: "Integration Ecosystem",
+        description: "Seamless integration with external tools and services",
+        progress: 25,
+        subgoals: [
+          "API development", "RESTful endpoints", "GraphQL support", "Webhook system", "Rate limiting",
+          "Authentication", "OAuth integration", "API keys", "Token management", "Security protocols",
+          "Note-taking apps", "Obsidian sync", "Notion integration", "Roam Research", "Logseq compatibility",
+          "Productivity tools", "Todoist integration", "Trello boards", "Asana projects", "Slack notifications",
+          "Cloud services", "Google Drive", "Dropbox sync", "OneDrive", "iCloud integration",
+          "Developer tools", "GitHub integration", "GitLab support", "Version control", "CI/CD pipelines",
+          "Communication", "Email integration", "Calendar sync", "Meeting notes", "Contact management",
+          "Research tools", "Zotero sync", "Mendeley", "EndNote", "Research databases",
+          "Social platforms", "Twitter integration", "LinkedIn posts", "Facebook sharing", "Reddit discussions",
+          "Automation", "Zapier integration", "IFTTT support", "Custom workflows", "Trigger systems",
+          "Import/Export", "Multiple formats", "Batch operations", "Data validation", "Error handling",
+          "Monitoring", "Integration health", "Error tracking", "Usage metrics", "Performance monitoring"
+        ]
+      },
+      {
+        title: "Iterative Knowledge Building System",
+        description: "AI-assisted progressive knowledge organization and ontology development",
+        subgoals: [
+          { t: "Phase 1: Rough Landscape Mapping", done: false, d: "Initial surface-level analysis and categorization of large document collections" },
+          { t: "Surface-level document analysis", done: false, d: "Extract titles, headings, key phrases, and basic metadata from documents" },
+          { t: "Initial clustering algorithms", done: false, d: "Group documents by similarity using TF-IDF or basic embeddings" },
+          { t: "Category suggestion engine", done: false, d: "Propose initial category labels based on cluster analysis" },
+          { t: "Interactive category management UI", done: false, d: "Allow user to review, rename, merge, and split suggested categories" },
+          { t: "Document-to-category assignment", done: false, d: "Assign documents to categories with confidence scores" },
+          { t: "Category validation workflow", done: false, d: "User feedback loop for confirming or rejecting assignments" },
+          { t: "Progress tracking dashboard", done: false, d: "Visual progress indicators for categorization completion" },
+
+          { t: "Phase 2: Human-Guided Refinement", done: false, d: "Interactive refinement with human expertise and mental model capture" },
+          { t: "Feedback capture system", done: false, d: "Record user corrections, preferences, and reasoning patterns" },
+          { t: "Active learning loops", done: false, d: "Prioritize uncertain cases for human review and learning" },
+          { t: "Mental model extraction", done: false, d: "Infer user's organizational preferences from feedback patterns" },
+          { t: "Personalized ontology builder", done: false, d: "Build custom ontology structures based on user's domain knowledge" },
+          { t: "Conflict resolution interface", done: false, d: "Handle documents that could fit multiple categories" },
+          { t: "Hierarchy establishment", done: false, d: "Create parent-child relationships between categories" },
+          { t: "Cross-reference detection", done: false, d: "Identify documents that span multiple categories" },
+
+          { t: "Phase 3: Deep Category Analysis", done: false, d: "Sophisticated analysis within established categories" },
+          { t: "Category-specific embeddings", done: false, d: "Generate specialized embeddings for each category domain" },
+          { t: "Intra-category relationship mapping", done: false, d: "Map relationships between documents within categories" },
+          { t: "Concept extraction within categories", done: false, d: "Extract domain-specific concepts and terminology" },
+          { t: "Sub-category formation", done: false, d: "Automatically propose sub-categories within main categories" },
+          { t: "Expert knowledge integration", done: false, d: "Incorporate domain expertise into category-specific analysis" },
+          { t: "Semantic network building", done: false, d: "Build rich semantic networks within each category" },
+          { t: "Knowledge gap identification", done: false, d: "Identify missing connections or incomplete knowledge areas" },
+
+          { t: "Phase 4: Emergent Intelligence", done: false, d: "Advanced AI partnership for knowledge discovery and insights" },
+          { t: "Cross-category insight discovery", done: false, d: "Find unexpected connections across different categories" },
+          { t: "Knowledge synthesis engine", done: false, d: "Combine insights from multiple categories into new understanding" },
+          { t: "Trend analysis across categories", done: false, d: "Identify patterns and trends spanning the entire knowledge base" },
+          { t: "Personalized knowledge recommendations", done: false, d: "Suggest new areas of exploration based on current knowledge" },
+          { t: "Automated knowledge updating", done: false, d: "Continuously refine understanding as new documents are added" },
+          { t: "Context-aware question answering", done: false, d: "Answer questions by drawing from the entire personalized knowledge base" },
+          { t: "Knowledge graph visualization", done: false, d: "Interactive visualization of the complete knowledge network" },
+
+          { t: "Technical Infrastructure", done: false, d: "Core technical components for iterative knowledge building" },
+          { t: "Progressive embedding system", done: false, d: "Hierarchical embeddings from surface-level to deep domain-specific" },
+          { t: "Memory architecture", done: false, d: "Efficient storage and retrieval of analysis results and user feedback" },
+          { t: "Incremental processing pipeline", done: false, d: "Process new documents without recomputing entire knowledge base" },
+          { t: "Context window management", done: false, d: "Handle large document collections within AI context limitations" },
+          { t: "Batch processing optimization", done: false, d: "Efficient processing of hundreds of documents" },
+          { t: "Real-time feedback integration", done: false, d: "Immediately incorporate user feedback into the learning system" },
+          { t: "Export/import knowledge structures", done: false, d: "Persist and transfer learned ontologies and categorizations" },
+
+          { t: "Quality Assurance & Validation", done: false, d: "Ensure accuracy and reliability of the AI-assisted process" },
+          { t: "Accuracy metrics and validation", done: false, d: "Measure and validate the quality of categorizations and insights" },
+          { t: "Bias detection and mitigation", done: false, d: "Identify and correct biases in automatic categorization" },
+          { t: "Human oversight mechanisms", done: false, d: "Maintain human control and understanding throughout the process" },
+          { t: "Explanation and transparency", done: false, d: "Provide clear explanations for AI-generated categorizations and insights" },
+          { t: "Version control for knowledge structures", done: false, d: "Track evolution of ontologies and enable rollback" },
+          { t: "Performance monitoring", done: false, d: "Monitor system performance and user satisfaction metrics" },
+          { t: "Error recovery and correction", done: false, d: "Mechanisms to correct and learn from mistakes" },
+
+          { t: "User Experience & Interface", done: false, d: "Intuitive interfaces for managing the iterative knowledge building process" },
+          { t: "Guided onboarding workflow", done: false, d: "Step-by-step introduction to the iterative knowledge building process" },
+          { t: "Progress visualization dashboard", done: false, d: "Clear visualization of progress through the four phases" },
+          { t: "Interactive category management", done: false, d: "Drag-and-drop interface for organizing categories and documents" },
+          { t: "Confidence score indicators", done: false, d: "Visual indicators showing AI confidence in categorizations" },
+          { t: "Feedback collection interface", done: false, d: "Streamlined interface for providing feedback on AI suggestions" },
+          { t: "Knowledge exploration tools", done: false, d: "Tools for browsing and exploring the emerging knowledge structure" },
+          { t: "Integration with existing PKM workflow", done: false, d: "Seamless integration with current note-taking and organization practices" }
+        ]
+      },
+      {
+        title: "Performance Optimization",
+        description: "Lightning-fast performance across all operations",
+        progress: 55,
+        subgoals: [
+          "Bundle optimization", "Code splitting", "Tree shaking", "Minification", "Compression",
+          "Loading strategies", "Lazy loading", "Preloading", "Prefetching", "Critical resource priority",
+          "Caching strategies", "Browser caching", "Service worker caching", "Memory caching", "Database caching",
+          "Rendering optimization", "Virtual scrolling", "DOM optimization", "Paint optimization", "Layout thrashing",
+          "Network optimization", "Request batching", "Connection pooling", "CDN usage", "Asset optimization",
+          "Memory management", "Garbage collection", "Memory leaks", "Resource cleanup", "Memory profiling",
+          "Database optimization", "Query optimization", "Index strategies", "Connection pooling", "Transaction batching",
+          "Image optimization", "Format selection", "Compression", "Responsive images", "Lazy loading",
+          "JavaScript optimization", "Bundle analysis", "Runtime optimization", "Async patterns", "Worker threads",
+          "CSS optimization", "Critical CSS", "Unused CSS removal", "CSS-in-JS optimization", "Animation performance",
+          "Monitoring tools", "Performance metrics", "Real user monitoring", "Synthetic testing", "Alerting",
+          "Profiling tools", "Chrome DevTools", "Lighthouse audits", "Bundle analyzers", "Performance budgets"
+        ]
+      },
+      {
+        title: "Documentation & Learning",
+        description: "Comprehensive documentation and learning resources",
+        progress: 65,
+        subgoals: [
+          "User documentation", "Getting started guide", "Feature tutorials", "Best practices", "FAQ section",
+          "Developer documentation", "API reference", "Plugin development", "Contributing guide", "Architecture overview",
+          "Video tutorials", "Screen recordings", "Interactive demos", "Walkthrough tours", "Feature showcases",
+          "Example content", "Sample vaults", "Use case studies", "Template library", "Workflow examples",
+          "Community resources", "Forum setup", "Discord server", "Knowledge base", "User contributions",
+          "Help system", "In-app help", "Context-sensitive help", "Tooltips", "Guided tours",
+          "Accessibility documentation", "Screen reader guides", "Keyboard shortcuts", "Accessibility features", "Testing procedures",
+          "Troubleshooting", "Common issues", "Error messages", "Diagnostic tools", "Recovery procedures",
+          "Release notes", "Change logs", "Migration guides", "Breaking changes", "Feature announcements",
+          "Training materials", "Workshop content", "Certification programs", "Skill assessments", "Learning paths",
+          "Internationalization", "Multi-language docs", "Localization guides", "Translation management", "Cultural adaptation",
+          "Maintenance", "Content updates", "Review cycles", "Feedback integration", "Quality assurance"
+        ]
+      },
+      {
+        title: "Community & Ecosystem Development",
+        description: "Thriving community and sustainable ecosystem",
+        progress: 40,
+        subgoals: [
+          "Community building", "User onboarding", "Community guidelines", "Moderation tools", "Engagement programs",
+          "Open source strategy", "License selection", "Contribution workflows", "Code of conduct", "Governance model",
+          "Developer ecosystem", "Plugin marketplace", "Developer tools", "SDK distribution", "Partner program",
+          "User feedback", "Feedback collection", "Feature requests", "User research", "Beta testing",
+          "Events and outreach", "Conferences", "Meetups", "Webinars", "Workshops",
+          "Content creation", "Blog posts", "Case studies", "Success stories", "Technical articles",
+          "Social media presence", "Platform strategy", "Content calendar", "Community management", "Brand awareness",
+          "Partnership development", "Strategic partnerships", "Integration partners", "Technology alliances", "Distribution partners",
+          "Support systems", "Help desk", "Community support", "Expert network", "Escalation procedures",
+          "Recognition programs", "Contributor recognition", "User spotlights", "Achievement badges", "Leaderboards",
+          "Sustainability", "Funding model", "Revenue streams", "Cost management", "Long-term planning",
+          "Measurement", "Community metrics", "Engagement tracking", "Growth analysis", "Health indicators"
+        ]
+      }
+    ];
+
+    function calcProgress(goal){
+      const total = goal.subgoals.length;
+      const done = goal.subgoals.filter(s=>s.done).length;
+      return { done, total, pct: Math.round((done/total)*100) };
+    }
+
+    // Normalize remaining legacy goal definitions (string subgoals & optional progress ints)
+    function normalizeGoals(){
+      goals.forEach(g=>{
+        g.subgoals = g.subgoals.map(s=>{
+          if(typeof s === 'string') return { t: s, done: false, d: '' };
+          return s; // already object
+        });
+      });
+    }
+
+    function createGoalSection(goal, index) {
+      const { pct, done, total } = calcProgress(goal);
+      return `
+        <div class="goal-section" data-goal="${index}">
+          <div class="goal-header">
+            <div class="goal-title">${index + 1}. ${goal.title}</div>
+            <div class="goal-progress" id="goal-progress-${index}">${pct}% Complete (${done}/${total})</div>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: ${pct}%"></div>
+            <div class="progress-marker" title="Stretch (ambition)"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-size: 0.9rem; color: var(--muted);">${goal.description}</div>
+            <button class="toggle-btn" onclick="toggleSubgoals(${index})">Details</button>
+          </div>
+          <div class="subgoals" id="subgoals-${index}">
+            ${goal.subgoals.map((s,i)=>`
+              <div class="subgoal ${s.done?'done':'pending'}" onclick="openSubgoal(${index},${i})" data-sub="${i}" aria-label="${s.t}">
+                ${s.done?'✓':i+1}
+                <div class="tooltip">${s.t}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+    }
+    // Scoring heuristics for priority generation
+    const keywordWeights = {
+      semantic: 6, link:5, graph:5, search:6, markdown:4, accessibility:5, performance:5, test:5, testing:5, quality:4,
+      security:6, privacy:6, ai:6, embedding:6, vector:6, plugin:4, extensibility:4, ontology:6, address:6, uri:4,
+      parse:5, frontmatter:5, index:5, indexing:5, keyboard:3, shortcut:3, caching:4, iterative:6, knowledge:6,
+      clustering:5, category:5, categorization:6, feedback:5, learning:6, progressive:5, analysis:5, refinement:5,
+      intelligence:5, synthesis:5, recommendation:5, personalized:5, discovery:5, insight:5, automation:4
+    };
+    const weightControls = {
+      semantic: ()=> parseFloat(document.getElementById('w-semantic').value),
+      search: ()=> parseFloat(document.getElementById('w-search').value),
+      performance: ()=> parseFloat(document.getElementById('w-performance').value),
+      accessibility: ()=> parseFloat(document.getElementById('w-accessibility').value),
+      security: ()=> parseFloat(document.getElementById('w-security').value),
+      ai: ()=> parseFloat(document.getElementById('w-ai').value)
+    };
+    function baseImpactCategory(goalIndex){
+      // Earlier goals foundational => slightly higher base.
+      if(goalIndex < 2) return 6; // UI & Semantic are top
+      if(goalIndex < 5) return 5; // next cluster
+      if(goalIndex < 10) return 4;
+      return 3;
+    }
+    function scoreSubgoal(gIndex, sIndex){
+      const g = goals[gIndex];
+      const s = g.subgoals[sIndex];
+      if(s.done) return -1; // exclude completed
+      const text = (s.t + ' ' + (s.d||'')).toLowerCase();
+      let kwScore = 0;
+      for(const k in keywordWeights){ if(text.includes(k)) {
+        let mult = 1;
+        if(k==='semantic'||k==='address'||k==='uri') mult = weightControls.semantic();
+        else if(k==='search'||k==='index'||k==='indexing') mult = weightControls.search();
+        else if(k==='performance'||k==='caching') mult = weightControls.performance();
+        else if(k==='accessibility') mult = weightControls.accessibility();
+        else if(k==='security'||k==='privacy') mult = weightControls.security();
+        else if(k==='ai'||k==='embedding'||k==='vector') mult = weightControls.ai();
+        kwScore += keywordWeights[k] * mult;
+      } }
+      const foundation = baseImpactCategory(gIndex);
+      // Penalize if description absent => maybe poorly defined
+      const clarity = (s.d && s.d.length>10) ? 1 : 0;
+      // Lower current progress of goal => subgoals in earlier stage weighted to boost forward movement
+      const { pct } = calcProgress(g);
+      const progressFactor = (100 - pct)/25; // 0..4 scale
+      const score = foundation*2 + kwScore + clarity + progressFactor;
+      return { score, foundation: foundation*2, kwScore, clarity, progressFactor, text: s.t };
+    }
+    function computePriorities(limit=10){
+      const items = [];
+      goals.forEach((g,gi)=>{
+        g.subgoals.forEach((s,si)=>{
+          const detail = scoreSubgoal(gi,si);
+            if(detail.score>0) items.push({ ...detail, gIndex: gi, sIndex: si, title: s.t });
+        });
+      });
+      items.sort((a,b)=> b.score - a.score || a.title.localeCompare(b.title));
+      return items.slice(0,limit);
+    }
+    function renderPriorityList(){
+      const listEl = document.getElementById('priorityList');
+      const priorities = computePriorities();
+      listEl.innerHTML = priorities.map((p,i)=>{
+        const goal = goals[p.gIndex];
+        const breakdown = `F:${p.foundation.toFixed(1)} K:${p.kwScore.toFixed(1)} P:${p.progressFactor.toFixed(2)} C:${p.clarity}`;
+        return `<li class="priority-item" onclick="openSubgoal(${p.gIndex},${p.sIndex})" title="${breakdown}">
+          <span class="prio-rank">${i+1}</span>
+          <div class="prio-text">
+            <div class="title">${p.title}</div>
+            <div class="path">Goal ${p.gIndex+1}: ${goal.title}</div>
+          </div>
+          <span class="prio-score">${p.score.toFixed(1)}</span>
+          <span class="score-tip">${breakdown}</span>
+        </li>`;
+      }).join('');
+      document.getElementById('priorityMeta').textContent = `Dynamic ranking • ${priorities.length} suggestions • ${(new Date()).toLocaleTimeString()}`;
+    }
+
+    function toggleSubgoals(goalIndex){
+      const el = document.getElementById(`subgoals-${goalIndex}`);
+      el.classList.toggle('expanded');
+    }
+
+    let currentGoal = null; let currentSub = null;
+    function openSubgoal(gIndex, sIndex){
+      currentGoal = gIndex; currentSub = sIndex;
+      const goal = goals[gIndex];
+      const sub = goal.subgoals[sIndex];
+      document.getElementById('modalTitle').textContent = sub.t;
+      document.getElementById('modalStatus').innerHTML = `<span class="badge ${sub.done?'done':'pending'}">${sub.done?'DONE':'PENDING'}</span>`;
+      document.getElementById('modalDesc').textContent = sub.d || 'No description yet';
+      const { pct, done, total } = calcProgress(goal);
+      document.getElementById('modalProgress').textContent = `Goal progress: ${pct}% (${done}/${total})`;
+      document.getElementById('markDoneBtn').disabled = sub.done;
+      document.getElementById('markPendingBtn').disabled = !sub.done;
+      document.getElementById('goalModal').style.display='flex';
+      document.getElementById('goalModal').setAttribute('aria-hidden','false');
+    }
+    function closeModal(){
+      document.getElementById('goalModal').style.display='none';
+      document.getElementById('goalModal').setAttribute('aria-hidden','true');
+    }
+  document.getElementById('markDoneBtn').onclick = ()=>updateSubgoalStatus(true);
+  document.getElementById('markPendingBtn').onclick = ()=>updateSubgoalStatus(false);
+    function updateSubgoalStatus(done){
+      if(currentGoal==null) return;
+      const goal = goals[currentGoal];
+      const sub = goal.subgoals[currentSub];
+      sub.done = done;
+      // update cell
+      const cell = document.querySelector(`[data-goal='${currentGoal}'] [data-sub='${currentSub}']`);
+      cell.classList.toggle('done',done); cell.classList.toggle('pending',!done); cell.innerHTML = `${done?'✓':(parseInt(currentSub)+1)}<div class="tooltip">${sub.t}</div>`;
+      // progress
+      const { pct, done:doneCount, total } = calcProgress(goal);
+      const wrap = document.querySelector(`[data-goal='${currentGoal}']`);
+      wrap.querySelector('.progress-fill').style.width = pct+'%';
+      wrap.querySelector(`#goal-progress-${currentGoal}`).textContent = `${pct}% Complete (${doneCount}/${total})`;
+      // modal reflect
+      document.getElementById('modalStatus').innerHTML = `<span class="badge ${sub.done?'done':'pending'}">${sub.done?'DONE':'PENDING'}</span>`;
+      document.getElementById('markDoneBtn').disabled = sub.done;
+      document.getElementById('markPendingBtn').disabled = !sub.done;
+  const { pct:npct } = calcProgress(goal);
+  document.getElementById('modalProgress').textContent = `Goal progress: ${npct}% (${doneCount}/${total})`;
+  renderPriorityList();
+      persistState();
+    }
+    window.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+    // Persistence
+    const STORAGE_KEY = 'pkm_goals_state_v1';
+    function persistState(){
+      const state = {
+        goals: goals.map(g=>({ title:g.title, subgoals:g.subgoals.map(s=>({t:s.t,done:s.done,d:s.d})) })),
+        weights: {
+          semantic: weightControls.semantic(),
+          search: weightControls.search(),
+          performance: weightControls.performance(),
+          accessibility: weightControls.accessibility(),
+          security: weightControls.security(),
+          ai: weightControls.ai()
+        },
+        ts: Date.now()
+      };
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+    }
+    function restoreState(){
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return;
+        const parsed = JSON.parse(raw);
+        parsed.goals.forEach(pg=>{
+          const match = goals.find(g=>g.title===pg.title);
+          if(match){
+            pg.subgoals.forEach((ps,i)=>{ if(match.subgoals[i]) match.subgoals[i].done = !!ps.done; });
+          }
+        });
+        if(parsed.weights){
+          for(const k in parsed.weights){ const el = document.getElementById(`w-${k}`); if(el){ el.value = parsed.weights[k]; updateWeightLabel(k, parsed.weights[k]); } }
+        }
+      } catch(e) {}
+    }
+    function updateWeightLabel(key,val){
+      const span = document.getElementById(`w-${key}-val`); if(span) span.textContent = parseFloat(val).toFixed(1);
+    }
+    ['semantic','search','performance','accessibility','security','ai'].forEach(k=>{
+      const el = document.getElementById(`w-${k}`);
+      el.addEventListener('input',()=>{ updateWeightLabel(k, el.value); renderPriorityList(); persistState(); });
+    });
+
+    // Export / Import
+    function exportJSON(){
+      const blob = new Blob([localStorage.getItem(STORAGE_KEY)||'{}'], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='pkm-goals-state.json'; a.click();
+      URL.revokeObjectURL(url);
+      flashStatus('Exported JSON');
+    }
+    function exportMarkdown(){
+      let md = '# PKM Goals Snapshot\n\n';
+      goals.forEach(g=>{
+        const { pct, done, total } = calcProgress(g);
+        md += `## ${g.title} (${pct}% ${done}/${total})\n`;
+        g.subgoals.forEach(s=>{ md += `- ${s.done ? '[x]' : '[ ]'} ${s.t}\n`; });
+        md += '\n';
+      });
+      const blob = new Blob([md], {type:'text/markdown'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='pkm-goals-snapshot.md'; a.click();
+      URL.revokeObjectURL(url);
+      flashStatus('Exported Markdown');
+    }
+    function flashStatus(msg){ const el = document.getElementById('exportStatus'); el.textContent = msg; setTimeout(()=>{ if(el.textContent===msg) el.textContent=''; }, 3000); }
+    document.getElementById('exportJsonBtn').onclick = exportJSON;
+    document.getElementById('exportMdBtn').onclick = exportMarkdown;
+    document.getElementById('toggleImportBtn').onclick = ()=>{
+      const ta = document.getElementById('importArea');
+      ta.style.display = ta.style.display==='block' ? 'none':'block';
+      if(ta.style.display==='block') ta.focus();
+    };
+    document.getElementById('clearStateBtn').onclick = ()=>{ if(confirm('Reset saved state?')) { localStorage.removeItem(STORAGE_KEY); location.reload(); } };
+    document.getElementById('importArea').addEventListener('keydown',e=>{
+      if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){
+        try {
+          const parsed = JSON.parse(e.target.value);
+          if(parsed.goals){
+            parsed.goals.forEach(pg=>{
+              const match = goals.find(g=>g.title===pg.title);
+              if(match){ pg.subgoals.forEach((ps,i)=>{ if(match.subgoals[i]) match.subgoals[i].done = !!ps.done; }); }
+            });
+          }
+          if(parsed.weights){
+            for(const k in parsed.weights){ const el = document.getElementById(`w-${k}`); if(el){ el.value = parsed.weights[k]; updateWeightLabel(k, parsed.weights[k]); } }
+          }
+          document.getElementById('goalsContainer').innerHTML = goals.map(createGoalSection).join('');
+          renderPriorityList();
+          persistState();
+          flashStatus('Imported state');
+        } catch(err){ flashStatus('Import failed'); }
+      }
+    });
+
+    // Initialize the page
+  normalizeGoals();
+  restoreState();
+  document.getElementById('goalsContainer').innerHTML = goals.map(createGoalSection).join('');
+  renderPriorityList();
+  document.getElementById('recomputeBtn').onclick = () => { renderPriorityList(); persistState(); };
+  persistState();
+  </script>
+</body>
+</html>

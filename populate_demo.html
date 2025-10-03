@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Populate Demo Data</title>
+</head>
+<body>
+  <h1>PKM Demo Data Population</h1>
+  <button onclick="populateDemo()">Populate Demo Data</button>
+  <div id="status"></div>
+
+  <script>
+    async function populateDemo() {
+      const status = document.getElementById('status');
+      status.innerHTML = 'Loading vault and populating interface...';
+
+      try {
+        // Simulate goals state for demonstration
+        const goalsState = {
+          goals: [
+            {
+              title: "Core Infrastructure",
+              subgoals: [
+                { t: "Semantic ID system", d: "Implement unique identifiers", done: true },
+                { t: "File parsing workflow", d: "Parse markdown frontmatter", done: true },
+                { t: "Search functionality", d: "Real-time search across notes", done: false },
+                { t: "Tri-column layout", d: "PKM left, tasks middle, goals right", done: true }
+              ]
+            },
+            {
+              title: "Personal Knowledge Management",
+              subgoals: [
+                { t: "Ontology classification", d: "Auto-categorize notes by type", done: true },
+                { t: "Backlink system", d: "Track note relationships", done: true },
+                { t: "Priority scoring", d: "Goal-driven task prioritization", done: false },
+                { t: "Semantic graph", d: "Visual knowledge connections", done: true }
+              ]
+            },
+            {
+              title: "Family & Health",
+              subgoals: [
+                { t: "Family task tracking", d: "Manage household tasks", done: false },
+                { t: "Health routine", d: "Track wellness activities", done: false },
+                { t: "Travel planning", d: "Organize family trips", done: false }
+              ]
+            }
+          ]
+        };
+
+        localStorage.setItem('pkm_goals_state_v1', JSON.stringify(goalsState));
+
+        // Simulate semantic ID cache
+        const semIds = {
+          "01_person.md": "person:alex-rivers",
+          "02_biography.md": "note:biography",
+          "03_career-research.md": "project:career-research",
+          "04_family-tasks.md": "project:family-management",
+          "05_travel-log.md": "note:travel-log",
+          "06_research-notes.md": "note:research-notes",
+          "07_concept-systems-thinking.md": "concept:systems-thinking",
+          "08_meeting-notes.md": "note:meeting-notes",
+          "09_health-tasks.md": "task:health-care",
+          "10_ideas-kanban.md": "project:ideas-kanban"
+        };
+
+        localStorage.setItem('sem_ids_v1', JSON.stringify(semIds));
+
+        status.innerHTML = 'Demo data populated! Navigate to <a href="/">main page</a> and click "Load ./vault/" to see the populated interface.';
+
+      } catch (error) {
+        status.innerHTML = 'Error: ' + error.message;
+      }
+    }
+  </script>
+</body>
+</html>

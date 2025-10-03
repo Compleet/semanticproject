@@ -1,0 +1,45 @@
+Serving /home/tam/semanticproject on http://localhost:8000
+127.0.0.1 - - [15/Aug/2025 08:15:40] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:15:41] code 404, message File not found
+127.0.0.1 - - [15/Aug/2025 08:15:41] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [15/Aug/2025 08:17:49] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:17:49] "GET /vault/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:17:49] "GET /vault/01_person.md HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:17:49] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:28:23] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:28:26] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:28:28] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:28:45] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:28:45] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:32:34] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:33:32] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:36:02] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:38:12] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:40:53] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:40:53] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:41:19] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:47:30] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:50:39] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:50:40] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:53:56] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:54:06] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:55:41] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:55:42] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 08:57:37] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:00:55] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:08:33] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:08:33] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:08:59] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:10:33] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:10:33] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:15:03] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:16:20] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:16:20] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:20:03] "GET /goals.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:20:03] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:20:06] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:20:06] "GET /vault/manifest.json HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:20:06] "GET /vault/01_person.md HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:20:06] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [15/Aug/2025 09:22:13] "GET / HTTP/1.1" 200 -
+Terminated

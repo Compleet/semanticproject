@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Streamline Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<!-- macOS / Anytype / ClickUp inspired unified workspace -->
+<style>
+:root {
+  /* Design Tokens */
+  --font-system: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, 'JetBrains Mono', monospace;
+  --radius-xs: 4px; --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px;
+  --elev-low: 0 1px 2px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.05);
+  --elev-mid: 0 3px 8px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.06);
+  --elev-high: 0 8px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.08);
+  --gradient-ui: linear-gradient(145deg,#1f2933,#111826 55%);
+  --glass: rgba(255,255,255,0.06);
+  --glass-heavy: rgba(255,255,255,0.08);
+  --border: rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.18);
+  --text-primary: #f5f7fa;
+  --text-secondary: #98a2b3;
+  --text-faint: #5d6b7c;
+  --accent: #ffd94a;
+  --accent-rgb: 255,217,74;
+  --accent-grad: linear-gradient(120deg,#ffe793,#ffb347 55%,#ff9952);
+  --danger: #ef5350; --warn: #ffb74d; --ok: #4ade80; --info: #60a5fa; --violet:#8b5cf6;
+  --focus: 0 0 0 2px rgba(255,217,74,0.5),0 0 0 4px rgba(255,217,74,0.15);
+  --transition: 160ms cubic-bezier(.4,.2,.2,1);
+  background: var(--gradient-ui);
+  color-scheme: dark;
+}
+/* Light theme variables (data-theme="light") */
+[data-theme="light"] {
+  --gradient-ui: linear-gradient(145deg,#f5f7fa,#e4e9ef 55%);
+  --glass: rgba(10,18,28,0.04);
+  --glass-heavy: rgba(10,18,28,0.07);
+  --border: rgba(0,0,0,0.12);
+  --border-strong: rgba(0,0,0,0.22);
+  --text-primary:#1e2430;
+  --text-secondary:#4a5565;
+  --text-faint:#768394;
+  --accent:#8555ff;
+  --accent-rgb:133,85,255;
+  --accent-grad: linear-gradient(120deg,#b79bff,#8555ff 55%,#6d3dff);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html,body { margin:0; height:100%; font-family: var(--font-system); -webkit-font-smoothing: antialiased; color: var(--text-primary); }
+body { display:flex; flex-direction:column; overflow:hidden; }
+body.transitioning * { transition:none !important; }
+
+/* Top Toolbar */
+.app-toolbar { height:52px; display:flex; align-items:center; gap: var(--space-3); padding:0 var(--space-4); backdrop-filter: blur(14px) saturate(140%); background: linear-gradient(180deg,rgba(255,255,255,0.10),rgba(255,255,255,0.04)); border-bottom:1px solid var(--border-strong); }
+.app-title { font-weight:600; letter-spacing:.5px; font-size:14px; display:flex; align-items:center; gap:8px; }
+.app-title span.logo-badge { display:inline-flex; width:22px; height:22px; align-items:center; justify-content:center; background:var(--accent-grad); border-radius:6px; font-size:12px; color:#222; font-weight:700; box-shadow:0 0 0 1px rgba(0,0,0,0.4),0 2px 4px rgba(0,0,0,0.4); }
+
+/* Segmented Control */
+.segmented { display:inline-flex; background:rgba(255,255,255,0.08); border:1px solid var(--border); border-radius: var(--radius-lg); padding:4px; position:relative; }
+.segmented button { position:relative; background:transparent; border:0; padding:6px 14px; font-size:12px; color: var(--text-secondary); cursor:pointer; border-radius: var(--radius-md); font-weight:500; letter-spacing:.3px; transition: var(--transition); }
+.segmented button.active { color:#111; font-weight:600; }
+.segmented button:focus-visible { outline:none; box-shadow: var(--focus); }
+.segmented .seg-indicator { position:absolute; top:4px; bottom:4px; width:var(--_w,0); left:var(--_l,0); background: var(--accent-grad); border-radius: var(--radius-md); transition: var(--transition); box-shadow:0 2px 4px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.35); }
+
+/* Layout */
+.app-shell { flex:1; display:grid; grid-template-columns: 220px 1fr 320px; gap: var(--space-3); padding: var(--space-3) var(--space-4) var(--space-4); overflow:hidden; }
+.sidebar, .workspace, .inspector { backdrop-filter: blur(18px) saturate(160%); background: var(--glass); border:1px solid var(--border); border-radius: var(--radius-lg); position:relative; display:flex; flex-direction:column; min-height:0; }
+.sidebar { padding: var(--space-3); }
+.inspector { padding: var(--space-3); }
+.workspace { padding:0; }
+.panel-header { padding: var(--space-3) var(--space-4); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.panel-header h2 { margin:0; font-size:13px; font-weight:600; letter-spacing:.5px; text-transform:uppercase; color: var(--text-secondary); }
+.scroll-area { flex:1; overflow:auto; padding: var(--space-4); }
+.scroll-area::-webkit-scrollbar { width:10px; }
+.scroll-area::-webkit-scrollbar-track { background: transparent; }
+.scroll-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 100px; }
+.scroll-area::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
+/* Navigation List */
+.nav-group-title { font-size:10px; font-weight:600; letter-spacing:.8px; text-transform:uppercase; color: var(--text-faint); margin: var(--space-2) 0 var(--space-1); }
+.nav-item { display:flex; align-items:center; gap:10px; padding:8px 10px; font-size:12px; border-radius: var(--radius-md); cursor:pointer; color: var(--text-secondary); transition: var(--transition); position:relative; }
+.nav-item:hover { background: var(--glass-heavy); color: var(--text-primary); }
+.nav-item.active { background: linear-gradient(90deg, rgba(var(--accent-rgb),0.20), rgba(var(--accent-rgb),0.05)); color: #fff; }
+.nav-item .dot { width:6px; height:6px; background: var(--accent); border-radius:50%; box-shadow:0 0 0 2px rgba(var(--accent-rgb),0.25); }
+
+/* Buttons */
+.btn { --btn-bg:rgba(255,255,255,0.08); --btn-bd:var(--border); --btn-color:var(--text-secondary); display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius: var(--radius-md); font-size:12px; font-weight:500; border:1px solid var(--btn-bd); background: var(--btn-bg); color: var(--btn-color); cursor:pointer; line-height:1; transition: var(--transition); position:relative; }
+.btn:hover { --btn-bg:rgba(255,255,255,0.14); --btn-color: var(--text-primary); }
+.btn.primary { --btn-bg: var(--accent-grad); --btn-bd:rgba(0,0,0,0.35); --btn-color:#1a1a1a; font-weight:600; box-shadow:0 2px 4px rgba(0,0,0,0.35); }
+.btn.primary:hover { filter:brightness(1.05); }
+.btn.ghost { background:transparent; border-color:transparent; }
+.btn.danger { --btn-bg:rgba(239,83,80,0.15); --btn-bd:rgba(239,83,80,0.4); --btn-color:#ff9896; }
+.btn.small { padding:5px 10px; font-size:11px; }
+.btn.icon { width:34px; height:34px; padding:0; justify-content:center; }
+.btn:focus-visible { outline:none; box-shadow: var(--focus); }
+
+/* Tags / Pills */
+.pill { display:inline-flex; align-items:center; padding:3px 8px; font-size:10px; font-weight:500; border-radius: 100px; background:rgba(255,255,255,0.10); color: var(--text-secondary); gap:6px; }
+
+/* Workspace Modes */
+.mode-view { display:none; height:100%; flex-direction:column; }
+.mode-view.active { display:flex; }
+.empty-state { margin:auto; text-align:center; max-width:360px; padding: var(--space-5) var(--space-4); opacity:.85; }
+.empty-state h3 { margin:0 0 8px; font-size:18px; font-weight:600; }
+.empty-state p { margin:0; line-height:1.4; font-size:13px; color: var(--text-secondary); }
+
+/* Pathfinding View */
+.pathfinding-shell { display:flex; flex-direction:column; gap: var(--space-4); height:100%; }
+.path-row { display:flex; flex-wrap:wrap; gap: var(--space-3); align-items:flex-end; }
+.path-row .field { flex:1 1 260px; display:flex; flex-direction:column; gap:6px; }
+label.field-label { font-size:11px; font-weight:500; color: var(--text-secondary); letter-spacing:.5px; }
+.input { background:rgba(255,255,255,0.08); border:1px solid var(--border); border-radius: var(--radius-md); padding:10px 12px; color: var(--text-primary); font-size:13px; transition: var(--transition); }
+.input:focus { outline:none; border-color: var(--accent); box-shadow:0 0 0 3px rgba(var(--accent-rgb),0.25); }
+
+.refine-toggle { cursor:pointer; font-size:11px; font-weight:500; color: var(--accent); display:inline-flex; align-items:center; gap:6px; user-select:none; }
+.refine-panel { margin-top: var(--space-3); background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); display:none; gap: var(--space-4); }
+.slider-group { flex:1; display:flex; flex-direction:column; gap:6px; }
+.slider-group input[type=range] { width:100%; accent-color: var(--accent); }
+.slider-value { font-size:10px; color: var(--text-secondary); }
+
+.route-area { flex:1; display:grid; grid-template-columns: minmax(0,1.1fr) minmax(0,0.9fr); gap: var(--space-4); min-height:0; }
+.canvas-box { background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius: var(--radius-lg); position:relative; overflow:hidden; display:flex; flex-direction:column; }
+.canvas-box header { padding: var(--space-3) var(--space-4); font-size:11px; font-weight:600; letter-spacing:.6px; color: var(--text-secondary); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; }
+.canvas-stage { flex:1; position:relative; }
+canvas#routeCanvas { width:100%; height:100%; display:block; }
+
+.routes-list { background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius: var(--radius-lg); display:flex; flex-direction:column; overflow:hidden; }
+.routes-list header { padding: var(--space-3) var(--space-4); font-size:11px; font-weight:600; color: var(--text-secondary); letter-spacing:.6px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.route-scroll { flex:1; overflow:auto; padding: var(--space-3) var(--space-4); display:grid; gap: var(--space-3); }
+.route-card { background:rgba(255,255,255,0.07); border:1px solid var(--border); border-left:4px solid var(--accent); border-radius: var(--radius-md); padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4); display:flex; flex-direction:column; gap: var(--space-2); transition: var(--transition); cursor:pointer; }
+.route-card:hover { background:rgba(255,255,255,0.10); border-color: var(--border-strong); }
+.route-card.selected { box-shadow:0 0 0 2px var(--accent),0 0 0 5px rgba(var(--accent-rgb),0.25); }
+.route-meta { font-size:11px; color: var(--text-secondary); display:flex; flex-wrap:wrap; gap:8px; }
+.badge { background:rgba(255,255,255,0.10); padding:3px 8px; font-size:10px; border-radius: var(--radius-sm); font-weight:500; letter-spacing:.5px; }
+.badge.good { background:rgba(74,222,128,0.15); color:#6ee7b7; }
+.badge.warn { background:rgba(255,183,77,0.15); color:#ffcc80; }
+.badge.danger { background:rgba(239,83,80,0.15); color:#ff9f9c; }
+.route-steps { font-size:11px; line-height:1.4; color: var(--text-secondary); }
+
+/* Active Plan Ribbon */
+.active-plan { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(90deg, rgba(var(--accent-rgb),0.15), rgba(var(--accent-rgb),0.05)); border-top:1px solid var(--border); backdrop-filter: blur(14px); padding: var(--space-2) var(--space-4); display:flex; align-items:center; justify-content:space-between; gap: var(--space-3); font-size:12px; }
+.active-plan .plan-name { font-weight:600; color: var(--accent); display:flex; align-items:center; gap:8px; }
+
+/* AI Assistant Drawer */
+.ai-drawer { position:absolute; top:0; right:0; bottom:0; width:340px; background:rgba(18,22,30,0.85); backdrop-filter: blur(22px) saturate(160%); border-left:1px solid var(--border); transform:translateX(100%); transition: var(--transition); display:flex; flex-direction:column; box-shadow: var(--elev-high); }
+.ai-drawer.open { transform:translateX(0); }
+.ai-drawer header { padding: var(--space-4); display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); }
+.ai-messages { flex:1; overflow:auto; padding: var(--space-4); display:flex; flex-direction:column; gap: var(--space-3); }
+.ai-msg { background:rgba(255,255,255,0.06); border:1px solid var(--border); padding: var(--space-3); border-radius: var(--radius-md); font-size:12px; line-height:1.35; }
+.ai-msg.user { background:rgba(var(--accent-rgb),0.18); border-color:rgba(var(--accent-rgb),0.55); color:#222; font-weight:500; }
+.ai-input-bar { border-top:1px solid var(--border); padding: var(--space-3); display:flex; gap: var(--space-2); }
+.ai-input-bar input { flex:1; background:rgba(255,255,255,0.08); border:1px solid var(--border); border-radius: var(--radius-md); padding:10px 12px; color: var(--text-primary); font-size:12px; }
+.ai-input-bar input:focus { outline:none; border-color: var(--accent); }
+
+/* Floating Action Button */
+.fab { position:fixed; bottom:26px; right:26px; width:56px; height:56px; border-radius:50%; background:var(--accent-grad); box-shadow:0 6px 18px rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; color:#111; font-weight:700; font-size:24px; cursor:pointer; border:1px solid rgba(0,0,0,0.35); transition:var(--transition); z-index:50; }
+.fab:hover { transform:translateY(-3px) scale(1.04); }
+.fab:active { transform:translateY(0) scale(.96); }
+
+/* Command Palette */
+.cmd-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.35); backdrop-filter:blur(8px); display:none; align-items:flex-start; justify-content:center; padding-top:12vh; z-index:60; }
+.cmd-overlay.open { display:flex; }
+.cmd-palette { width:min(780px,90vw); background:var(--glass); border:1px solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: var(--elev-high); display:flex; flex-direction:column; overflow:hidden; animation:popIn .35s cubic-bezier(.4,.2,.2,1); }
+@keyframes popIn { from { transform:translateY(10px) scale(.97); opacity:0; } to { transform:translateY(0) scale(1); opacity:1; } }
+.cmd-search { padding:10px 14px; border:0; background:rgba(255,255,255,0.08); border-bottom:1px solid var(--border); font-size:14px; color:var(--text-primary); }
+.cmd-search:focus { outline:none; box-shadow: var(--focus); }
+.cmd-results { max-height:420px; overflow:auto; display:flex; flex-direction:column; }
+.cmd-item { padding:10px 16px; font-size:13px; display:flex; align-items:center; gap:10px; cursor:pointer; border-bottom:1px solid var(--border); color: var(--text-secondary); }
+.cmd-item:last-child { border-bottom:0; }
+.cmd-item:hover, .cmd-item.active { background:rgba(255,255,255,0.10); color: var(--text-primary); }
+.cmd-item kbd { font-size:10px; padding:2px 6px; background:rgba(255,255,255,0.14); border:1px solid var(--border); border-radius:4px; letter-spacing:.5px; }
+.cmd-section { font-size:10px; font-weight:600; letter-spacing:.7px; padding:6px 12px; color:var(--text-faint); background:rgba(255,255,255,0.05); position:sticky; top:0; }
+
+/* Progress Ring */
+.progress-ring { position:relative; width:54px; height:54px; }
+.progress-ring svg { transform:rotate(-90deg); }
+.progress-ring circle { fill:none; stroke-width:6; stroke-linecap:round; }
+.progress-ring .bg { stroke:rgba(255,255,255,0.15); }
+.progress-ring .fg { stroke: var(--accent); transition: stroke-dashoffset 600ms ease; }
+.progress-ring .label { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; }
+
+/* Theme Toggle Indicator */
+.theme-toggle-indicator { width:30px; height:16px; background:rgba(255,255,255,0.15); border-radius:100px; position:relative; display:inline-flex; align-items:center; cursor:pointer; border:1px solid var(--border); transition:var(--transition); }
+.theme-toggle-indicator span { position:absolute; width:14px; height:14px; background:var(--accent-grad); border-radius:50%; left:1px; top:1px; transition:var(--transition); box-shadow:0 2px 4px rgba(0,0,0,0.45); }
+[data-theme="light"] .theme-toggle-indicator { background:rgba(0,0,0,0.08); }
+[data-theme="light"] .theme-toggle-indicator span { left:calc(100% - 15px); }
+
+/* Utility classes */
+.hide { display:none !important; }
+
+/* Inspector placeholder */
+.placeholder-block { background:rgba(255,255,255,0.06); border:1px dashed var(--border); border-radius: var(--radius-md); padding: var(--space-4); font-size:12px; color: var(--text-secondary); text-align:center; }
+
+@media (max-width:1350px) { .app-shell { grid-template-columns: 200px 1fr; } .inspector { display:none; } }
+@media (max-width:980px) { .app-shell { grid-template-columns: 1fr; } .sidebar { display:none; } }
+</style>
+</head>
+<body>
+  <header class="app-toolbar">
+    <div class="app-title"><span class="logo-badge">S</span> Streamline</div>
+    <div class="segmented" id="modeControl" role="tablist" aria-label="Workspace Modes">
+      <div class="seg-indicator" aria-hidden="true"></div>
+      <button class="active" data-mode="content" role="tab" aria-selected="true">Content</button>
+      <button data-mode="path" role="tab">Pathfinding</button>
+      <button data-mode="graph" role="tab">Graph</button>
+      <button data-mode="projects" role="tab">Projects</button>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div title="Toggle theme" id="themeToggle" style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary);cursor:pointer;">
+        <div class="theme-toggle-indicator"><span></span></div>
+      </div>
+      <button class="btn small ghost" id="cmdOpen" title="Command Palette (Ctrl+K)">⌘K</button>
+    </div>
+    <button class="btn small" id="planToggle" style="display:none;">Active Plan</button>
+  </header>
+
+  <main class="app-shell">
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar" aria-label="Sidebar">
+      <div class="nav-group">
+        <div class="nav-group-title">Workspace</div>
+        <div class="nav-item active" data-mode-link="content"><div class="dot"></div>Content</div>
+        <div class="nav-item" data-mode-link="path">Pathfinding</div>
+        <div class="nav-item" data-mode-link="graph">Graph</div>
+        <div class="nav-item" data-mode-link="projects">Projects</div>
+      </div>
+      <div class="nav-group" style="margin-top:24px;">
+        <div class="nav-group-title">Utilities</div>
+        <div class="nav-item" id="nav-refactor">Refactor Ideas</div>
+        <div class="nav-item" id="nav-settings">Settings</div>
+      </div>
+    </nav>
+
+    <!-- Central Workspace -->
+    <section class="workspace" aria-live="polite">
+      <!-- Content Mode -->
+      <div class="mode-view active" id="mode-content" data-mode-panel>
+        <div class="panel-header"><h2>Content Workspace</h2><div class="pill">Staging</div></div>
+        <div class="scroll-area" id="contentArea">
+          <div class="empty-state">
+            <h3>Unified Workspace</h3>
+            <p>Select a note, project, or concept from the classic interface (future integration) or paste markdown to preview. This mode will merge prior staging + editing flows.</p>
+            <button class="btn primary" id="loadDemoContent">Load Demo Content</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pathfinding Mode -->
+      <div class="mode-view" id="mode-path" data-mode-panel>
+        <div class="panel-header"><h2>Goal Pathfinding</h2><div class="pill" id="routeCount">0 Routes</div></div>
+        <div class="scroll-area">
+          <div class="pathfinding-shell">
+            <div class="path-row">
+              <div class="field">
+                <label class="field-label" for="startInput">Where You Are Now</label>
+                <input id="startInput" class="input" placeholder="e.g. Casual walker" />
+              </div>
+              <div class="field">
+                <label class="field-label" for="goalInput">What You Want</label>
+                <input id="goalInput" class="input" placeholder="e.g. Run first 5K" />
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button class="btn primary" id="generateBtn">Generate Routes</button>
+                <button class="btn" id="exampleBtn">Examples</button>
+              </div>
+            </div>
+            <div class="refine-toggle" id="refineToggle">▸ Refine Context</div>
+            <div class="refine-panel" id="refinePanel" aria-hidden="true">
+              <div class="slider-group"><label class="field-label">Skill Level</label><input type="range" id="skillRange" min="0" max="100" value="50" /><div class="slider-value" id="skillVal">50%</div></div>
+              <div class="slider-group"><label class="field-label">Time Available</label><input type="range" id="timeRange" min="0" max="100" value="50" /><div class="slider-value" id="timeVal">50%</div></div>
+              <div class="slider-group"><label class="field-label">Risk Tolerance</label><input type="range" id="riskRange" min="0" max="100" value="50" /><div class="slider-value" id="riskVal">50%</div></div>
+            </div>
+
+            <div class="route-area">
+              <div class="canvas-box">
+                <header>
+                  <span>Route Visualization</span>
+                  <span class="badge" id="vizStatus">Idle</span>
+                </header>
+                <div class="canvas-stage">
+                  <canvas id="routeCanvas"></canvas>
+                </div>
+              </div>
+              <div class="routes-list">
+                <header>
+                  <span>Generated Routes</span>
+                  <div style="display:flex; gap:6px;">
+                    <span class="badge" id="planBadge" style="display:none;">Active Plan</span>
+                  </div>
+                </header>
+                <div class="route-scroll" id="routeScroll">
+                  <div class="empty-state" style="padding:40px 10px;">
+                    <h3 style="font-size:16px;">No Routes Yet</h3>
+                    <p style="font-size:12px;">Enter your start & goal then generate. Your selected plan will appear here as the Active Plan ribbon.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Graph Mode -->
+      <div class="mode-view" id="mode-graph" data-mode-panel>
+        <div class="panel-header"><h2>Knowledge Graph</h2><div class="pill">Preview</div></div>
+        <div class="scroll-area">
+          <div class="empty-state">
+            <h3>Graph Integration Coming</h3>
+            <p>The streamlined graph view will unify semantic entities & relationships. Future: mini-map, filters, semantic zoom.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Projects Mode -->
+      <div class="mode-view" id="mode-projects" data-mode-panel>
+        <div class="panel-header"><h2>Projects</h2><div class="pill" id="projectCount">0</div></div>
+        <div class="scroll-area" id="projectsArea">
+          <div class="empty-state">
+            <h3>Simplified Projects</h3>
+            <p>Lightweight project focus: clear milestones, progress, and connection to active plan. Coming next.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Plan Ribbon (dynamic) -->
+      <div class="active-plan" id="activePlan" style="display:none;">
+        <div class="plan-name" id="activePlanName">🎯 Selected Plan</div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn small" id="decomposeBtn">Decompose</button>
+          <button class="btn small" id="activateBtn">Activate</button>
+          <button class="btn small ghost" id="clearPlanBtn">Clear</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Project Goals Right Panel -->
+    <aside class="inspector" aria-label="Project Goals">
+      <div class="panel-header"><h2>Project Goals</h2><div class="pill" id="projectTotal">0</div></div>
+      <div class="scroll-area" id="projectGoalsArea"></div>
+    </aside>
+  </main>
+  <!-- Floating Action Button -->
+  <div class="fab" id="fab" title="Quick Create (N)">+</div>
+
+  <!-- Command Palette -->
+  <div class="cmd-overlay" id="cmdOverlay" role="dialog" aria-modal="true" aria-label="Command Palette">
+    <div class="cmd-palette">
+      <input id="cmdSearch" class="cmd-search" placeholder="Type a command or search…" aria-label="Command Search" />
+      <div class="cmd-results" id="cmdResults"></div>
+    </div>
+  </div>
+
+  <!-- Permanent Bottom Chat Panel -->
+  <div id="chatPanel" style="position:fixed;left:220px;right:320px;bottom:0;height:230px;display:flex;flex-direction:column;background:rgba(0,0,0,0.35);backdrop-filter:blur(18px) saturate(160%);border-top:1px solid var(--border);border-left:1px solid var(--border);border-right:1px solid var(--border);border-radius:16px 16px 0 0;box-shadow:0 -4px 18px rgba(0,0,0,0.35);z-index:40;">
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid var(--border);">
+      <span style="font-size:11px;font-weight:600;letter-spacing:.6px;color:var(--text-secondary);">ASSISTANT • Strategy & PKM</span>
+      <span class="badge" id="chatStatus">Ready</span>
+      <div style="flex:1"></div>
+      <span style="font-size:10px;color:var(--text-faint);">Enter to send • Ask about PARA or routes</span>
+    </div>
+    <div id="aiMessages" style="flex:1;overflow:auto;padding:10px 16px;display:flex;flex-direction:column;gap:8px;">
+      <div class="ai-msg" style="background:rgba(255,255,255,0.07);border:1px solid var(--border);padding:10px 12px;border-radius:10px;font-size:12px;">Hi! I'm anchored here. Click PARA items to load ideas; ask me to decompose a project or suggest resources.</div>
+    </div>
+    <div style="display:flex;gap:8px;padding:8px 12px;border-top:1px solid var(--border);">
+      <input id="aiInput" placeholder="Ask the assistant... (e.g. Decompose Project Alpha milestones)" style="flex:1;background:rgba(255,255,255,0.08);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--text-primary);font-size:12px;" />
+      <button class="btn primary small" id="aiSend">Send</button>
+    </div>
+  </div>
+
+<script>
+// Mode switching logic
+const modes = Array.from(document.querySelectorAll('[data-mode-panel]'));
+const segButtons = Array.from(document.querySelectorAll('#modeControl button'));
+const segIndicator = document.querySelector('.segmented .seg-indicator');
+const navLinks = Array.from(document.querySelectorAll('[data-mode-link]'));
+
+function activateMode(mode) {
+  modes.forEach(m => m.classList.toggle('active', m.id === 'mode-' + mode));
+  segButtons.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  navLinks.forEach(l => l.classList.toggle('active', l.dataset.modeLink === mode));
+  const activeBtn = segButtons.find(b => b.dataset.mode === mode);
+  if (activeBtn) {
+    const { offsetLeft: l, offsetWidth: w } = activeBtn;
+    segIndicator.style.setProperty('--_l', l + 'px');
+    segIndicator.style.setProperty('--_w', w + 'px');
+  }
+}
+window.addEventListener('resize', () => {
+  const current = segButtons.find(b => b.classList.contains('active'));
+  if (current) { const { offsetLeft: l, offsetWidth: w } = current; segIndicator.style.setProperty('--_l', l + 'px'); segIndicator.style.setProperty('--_w', w + 'px'); }
+});
+segButtons.forEach(btn => btn.addEventListener('click', () => activateMode(btn.dataset.mode)));
+navLinks.forEach(link => link.addEventListener('click', () => activateMode(link.dataset.modeLink)));
+activateMode('content');
+
+// Refine panel toggle
+const refineToggle = document.getElementById('refineToggle');
+const refinePanel = document.getElementById('refinePanel');
+refineToggle.addEventListener('click', () => {
+  const open = refinePanel.style.display === 'flex';
+  refinePanel.style.display = open ? 'none' : 'flex';
+  refineToggle.textContent = open ? '▸ Refine Context' : '▾ Refine Context';
+  refinePanel.setAttribute('aria-hidden', open);
+});
+
+// Slider updates
+['skill','time','risk'].forEach(key => {
+  const range = document.getElementById(key + 'Range');
+  const val = document.getElementById(key + 'Val');
+  range.addEventListener('input', () => val.textContent = range.value + '%');
+});
+
+// Permanent Chat
+const aiInput = document.getElementById('aiInput');
+const aiSend = document.getElementById('aiSend');
+const aiMessages = document.getElementById('aiMessages');
+aiSend.addEventListener('click', sendAIMessage);
+aiInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendAIMessage(); });
+function sendAIMessage() {
+  const q = aiInput.value.trim(); if(!q) return; aiInput.value='';
+  appendAI(q, true); // user
+  setTimeout(()=> appendAI(generateAIResponse(q), false), 650);
+}
+function appendAI(text, user=false){
+  const div = document.createElement('div');
+  div.className='ai-msg'+(user?' user':'');
+  div.textContent=text; aiMessages.appendChild(div); aiMessages.scrollTop=aiMessages.scrollHeight;
+}
+function generateAIResponse(q){
+  if (/meal|cook|dinner|lunch|breakfast/i.test(q)) return 'How about a simple balanced meal: grilled salmon (or beans), roasted veggies, and a quick lemon yogurt sauce?';
+  if (/garden|plant|tomato|herb/i.test(q)) return 'Early morning watering helps roots; add a thin compost layer around tomato bases this week.';
+  if (/budget|money|finance|spend/i.test(q)) return 'Try a 50 / 30 / 20 split (needs / fun / future). We can list recurring bills if you like.';
+  if (/exercise|workout|fitness|gym/i.test(q)) return 'Alternate strength (Mon/Wed/Fri) with light cardio (Tue/Thu). Keep sessions ~30 mins to stay consistent.';
+  if (/sleep|routine|morning/i.test(q)) return 'Anchor wake time, light stretch, water, sunlight. Small consistent steps beat big bursts.';
+  if (/hello|hi|hey/i.test(q)) return 'Hi! Ask me about meals, garden tasks, budgeting, routines, or learning goals.';
+  return 'I can help with home projects, daily routines, simple planning, meal ideas, garden care, budgeting, or learning goals.';
+}
+
+// THEME TOGGLE
+const themeToggle = document.getElementById('themeToggle');
+themeToggle.addEventListener('click', cycleTheme);
+function cycleTheme(){
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'light' ? 'dark' : 'light';
+  persistTheme(next);
+  applyTheme(next);
+}
+function applyTheme(theme){
+  document.body.classList.add('transitioning');
+  requestAnimationFrame(()=>{
+    document.documentElement.setAttribute('data-theme', theme);
+    setTimeout(()=> document.body.classList.remove('transitioning'), 220);
+  });
+}
+function persistTheme(theme){ try { localStorage.setItem('streamline-theme', theme); } catch(e){} }
+function loadTheme(){ try { const t = localStorage.getItem('streamline-theme'); if(t) applyTheme(t); } catch(e){} }
+loadTheme();
+
+// COMMAND PALETTE
+const cmdOverlay = document.getElementById('cmdOverlay');
+const cmdSearch = document.getElementById('cmdSearch');
+const cmdResults = document.getElementById('cmdResults');
+const cmdOpenBtn = document.getElementById('cmdOpen');
+const fab = document.getElementById('fab');
+
+const commands = [
+  { id:'new-note', title:'Create New Note', hint:'N', run: () => quickCreate('note') },
+  { id:'new-project', title:'Create New Project', hint:'Shift+P', run: () => quickCreate('project') },
+  { id:'switch-content', title:'Switch to Content Mode', hint:'1', run: () => activateMode('content') },
+  { id:'switch-path', title:'Switch to Pathfinding Mode', hint:'2', run: () => activateMode('path') },
+  { id:'switch-graph', title:'Switch to Graph Mode', hint:'3', run: () => activateMode('graph') },
+  { id:'switch-projects', title:'Switch to Projects Mode', hint:'4', run: () => activateMode('projects') },
+  { id:'generate-routes', title:'Generate Routes', hint:'G', run: () => generateRoutes() },
+  { id:'toggle-theme', title:'Toggle Theme', hint:'T', run: () => cycleTheme() },
+  // removed open-ai command (assistant always visible)
+  { id:'clear-plan', title:'Clear Active Plan', hint:'C', run: () => { if(selectedRoute) document.getElementById('clearPlanBtn').click(); } },
+];
+
+function openPalette(){ cmdOverlay.classList.add('open'); cmdSearch.value=''; renderCommands(commands); cmdSearch.focus(); }
+function closePalette(){ cmdOverlay.classList.remove('open'); }
+cmdOpenBtn.addEventListener('click', openPalette);
+cmdOverlay.addEventListener('click', e => { if(e.target===cmdOverlay) closePalette(); });
+cmdSearch.addEventListener('keydown', e => { if(e.key==='Escape'){ closePalette(); return; } if(e.key==='Enter'){ const act = cmdResults.querySelector('.cmd-item.active'); if(act){ runCommand(act.dataset.id); } } });
+cmdSearch.addEventListener('input', () => {
+  const q = cmdSearch.value.trim().toLowerCase();
+  const filtered = !q ? commands : commands.filter(c => c.title.toLowerCase().includes(q) || c.id.includes(q));
+  renderCommands(filtered);
+});
+
+function renderCommands(list){
+  cmdResults.innerHTML='';
+  list.forEach((c,i)=>{
+    const div=document.createElement('div');
+    div.className='cmd-item'+(i===0?' active':'');
+    div.dataset.id=c.id;
+    div.innerHTML = `<span style="flex:1;">${c.title}</span><kbd>${c.hint||''}</kbd>`;
+    div.addEventListener('click', ()=> { runCommand(c.id); });
+    cmdResults.appendChild(div);
+  });
+}
+function runCommand(id){ const cmd = commands.find(c=>c.id===id); if(!cmd) return; closePalette(); setTimeout(()=> cmd.run(), 60); }
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); openPalette(); }
+  else if(e.key==='Escape' && cmdOverlay.classList.contains('open')){ closePalette(); }
+  else if(!e.metaKey && !e.ctrlKey && cmdOverlay.classList.contains('open')){
+    // navigation inside palette
+    if(['ArrowDown','ArrowUp'].includes(e.key)){ e.preventDefault(); const items=Array.from(cmdResults.querySelectorAll('.cmd-item')); const idx=items.findIndex(i=>i.classList.contains('active')); let next=idx+(e.key==='ArrowDown'?1:-1); if(next<0) next=items.length-1; if(next>=items.length) next=0; items.forEach(i=>i.classList.remove('active')); items[next].classList.add('active'); items[next].scrollIntoView({block:'nearest'}); }
+  } else {
+    // Global shortcuts
+    if(e.target.matches('input,textarea')) return; // ignore when typing
+    const k = e.key.toLowerCase();
+    if(k==='1') activateMode('content');
+    else if(k==='2') activateMode('path');
+    else if(k==='3') activateMode('graph');
+    else if(k==='4') activateMode('projects');
+    else if(k==='g') generateRoutes();
+    else if(k==='t') cycleTheme();
+  // 'a' formerly toggled assistant – reserved for future quick focus
+    else if(k==='n') quickCreate('note');
+  }
+});
+
+// Quick Create via FAB
+fab.addEventListener('click', () => quickCreate('note'));
+function quickCreate(kind){
+  activateMode('content');
+  const area = document.getElementById('contentArea');
+  const id = 'note-'+Date.now().toString(36);
+  const block = document.createElement('div');
+  block.style.cssText='background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:var(--space-4);border-radius:var(--radius-lg);box-shadow:var(--elev-low);display:flex;flex-direction:column;gap:8px;';
+  block.innerHTML = `<div style="display:flex;align-items:center;gap:10px;">
+    <input value="Untitled ${kind}" style="flex:1;background:rgba(255,255,255,0.10);border:1px solid var(--border);padding:8px 10px;border-radius:8px;color:var(--text-primary);font-size:14px;font-weight:600;" />
+    <div class="progress-ring" data-progress="25">
+      <svg width="54" height="54"><circle class="bg" cx="27" cy="27" r="22" /><circle class="fg" cx="27" cy="27" r="22" stroke-dasharray="${Math.PI*44}" stroke-dashoffset="${Math.PI*44*0.75}"></circle></svg>
+      <div class="label">25%</div>
+    </div>
+  </div>
+  <textarea placeholder="Start writing..." style="min-height:120px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text-primary);font-size:13px;line-height:1.45;"></textarea>
+  <div style="display:flex;gap:8px;">
+    <button class="btn small primary">Save</button>
+    <button class="btn small ghost" onclick="this.closest('div[style]').remove()">Discard</button>
+  </div>`;
+  area.prepend(block);
+  appendAI('Created new '+kind+' draft.');
+}
+
+// Progress ring update util (future extension)
+function setProgress(el, pct){
+  const ring = el.querySelector('circle.fg'); if(!ring) return; const total = Math.PI*44; ring.style.strokeDasharray = total; ring.style.strokeDashoffset = total * (1 - (pct/100)); el.querySelector('.label').textContent = pct+'%'; el.dataset.progress=pct; }
+
+// Pathfinding logic (simplified prototype)
+const generateBtn = document.getElementById('generateBtn');
+const routeScroll = document.getElementById('routeScroll');
+const routeCount = document.getElementById('routeCount');
+const routeCanvas = document.getElementById('routeCanvas');
+const vizStatus = document.getElementById('vizStatus');
+const activePlan = document.getElementById('activePlan');
+const activePlanName = document.getElementById('activePlanName');
+const planBadge = document.getElementById('planBadge');
+
+let selectedRoute = null;
+
+function drawInitialCanvas(msg='Enter details & generate'){ const ctx = routeCanvas.getContext('2d'); const r=routeCanvas.getBoundingClientRect(); routeCanvas.width=r.width*devicePixelRatio; routeCanvas.height=r.height*devicePixelRatio; ctx.scale(devicePixelRatio,devicePixelRatio); ctx.clearRect(0,0,r.width,r.height); ctx.fillStyle='rgba(255,255,255,0.04)'; ctx.fillRect(0,0,r.width,r.height); ctx.fillStyle='rgba(255,255,255,0.12)'; ctx.font='12px Inter'; ctx.textAlign='center'; ctx.fillText(msg, r.width/2, r.height/2); }
+
+const resizeObserver = new ResizeObserver(()=> drawInitialCanvas());
+resizeObserver.observe(routeCanvas.parentElement);
+
+function generateRoutes(){
+  const start = document.getElementById('startInput').value.trim();
+  const goal = document.getElementById('goalInput').value.trim();
+  if(!start||!goal){ appendAI('Please provide both start and target goal to generate routes.'); return; }
+  vizStatus.textContent='Generating…'; vizStatus.className='badge warn';
+  routeScroll.innerHTML = '<div style="padding:20px;font-size:12px;color:var(--text-secondary);">Generating route strategies…</div>';
+  drawInitialCanvas('Calculating weighted paths...');
+  setTimeout(()=>{
+    vizStatus.textContent='Ready'; vizStatus.className='badge good';
+    const routes = buildRoutes(start, goal);
+    routeScroll.innerHTML='';
+    routes.forEach(r=> routeScroll.appendChild(renderRouteCard(r)));
+    routeCount.textContent = routes.length + ' Routes';
+    drawRoutesCanvas(routes);
+    appendAI('Generated '+routes.length+' candidate strategies. Select one to activate.');
+  }, 900);
+}
+
+function buildRoutes(start, goal){
+  const skill = +document.getElementById('skillRange').value;
+  const risk = +document.getElementById('riskRange').value;
+  // Basic derived weighting (placeholder for real engine integration)
+  return [
+    { id:'speed', name:'Speed Route', accent:'#ffd94a', duration:'3-5 wks', risk:'Higher', success: Math.max(40,90 - risk/2)+'%', steps:['Immersive sprint','Daily deep work','Mentor feedback','Ship showcase'], emphasis:'Momentum' },
+    { id:'balanced', name:'Balanced Route', accent:'#60a5fa', duration:'8-12 wks', risk:'Moderate', success: (70 + (skill/5)|0)+'%', steps:['Structured plan','Skill layering','Weekly review','Iterative projects'], emphasis:'Sustainability' },
+    { id:'learning', name:'Learning Depth', accent:'#8b5cf6', duration:'3-6 mo', risk:'Low', success: (80 + (skill/10)|0)+'%', steps:['Concept mapping','Deliberate practice','Research assimilation','Capstone build'], emphasis:'Depth' },
+    { id:'creative', name:'Creative Hybrid', accent:'#ff9952', duration:'6-10 wks', risk:'Variable', success: (65 + (risk/6)|0)+'%', steps:['Parallel prototyping','Public build log','Community feedback','Pattern synthesis'], emphasis:'Innovation' }
+  ];
+}
+
+function renderRouteCard(route){
+  const div = document.createElement('div');
+  div.className='route-card';
+  div.dataset.routeId = route.id;
+  div.style.borderLeftColor = route.accent;
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+      <div style="font-weight:600;font-size:13px;color:${route.accent}">${route.name}</div>
+      <div class="route-meta"><span class="badge" style="background:rgba(255,255,255,0.10)">${route.duration}</span><span class="badge ${route.risk==='Higher'?'danger':route.risk==='Variable'?'warn':'good'}">${route.success}</span></div>
+    </div>
+    <div class="route-steps">${route.steps.join(' • ')}</div>
+    <div style="font-size:10px;color:var(--text-faint);letter-spacing:.5px;text-transform:uppercase;">Emphasis: ${route.emphasis}</div>
+  `;
+  div.addEventListener('click', ()=> selectRoute(route, div));
+  return div;
+}
+
+function selectRoute(route, el){
+  document.querySelectorAll('.route-card').forEach(c=> c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedRoute = route;
+  activePlan.style.display='flex';
+  activePlanName.innerHTML = '🎯 ' + route.name + ' <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">'+ route.duration +'</span>';
+  planBadge.style.display='inline-flex';
+  appendAI('Activated "'+route.name+'". You can now decompose it into tasks.');
+}
+
+function drawRoutesCanvas(routes){
+  const ctx = routeCanvas.getContext('2d'); const r=routeCanvas.getBoundingClientRect();
+  routeCanvas.width=r.width*devicePixelRatio; routeCanvas.height=r.height*devicePixelRatio; ctx.scale(devicePixelRatio,devicePixelRatio);
+  ctx.clearRect(0,0,r.width,r.height);
+  ctx.lineWidth=3; ctx.lineCap='round';
+  routes.forEach((route,i)=>{
+    const color = route.accent; const y = (r.height*0.15) + i*(r.height*0.18);
+    ctx.strokeStyle = color; ctx.beginPath(); ctx.moveTo(40, r.height-40); ctx.bezierCurveTo(r.width*0.35, y+40, r.width*0.65, y-40, r.width-40, 40); ctx.stroke();
+  });
+  // Start / Goal
+  ctx.fillStyle='#4ade80'; ctx.beginPath(); ctx.arc(40, r.height-40, 7,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#ef5350'; ctx.beginPath(); ctx.arc(r.width-40, 40, 7,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.font='11px Inter'; ctx.fillText('START', 18, r.height-18); ctx.fillText('GOAL', r.width-70, 26);
+}
+
+generateBtn.addEventListener('click', generateRoutes);
+
+// Example goals
+const exampleBtn = document.getElementById('exampleBtn');
+exampleBtn.addEventListener('click', ()=> {
+  const presets = [
+    ['Casual walker','Run first 5K'],
+    ['Home cook','Weekly healthy meal plan'],
+    ['Messy closet','Organized wardrobe'],
+    ['Basic Italian learner','Hold simple Italian conversation']
+  ];
+  const pick = presets[Math.floor(Math.random()*presets.length)];
+  document.getElementById('startInput').value = pick[0];
+  document.getElementById('goalInput').value = pick[1];
+  appendAI('Loaded example: '+pick[0]+' → '+pick[1]);
+});
+
+// Active Plan interactions
+const clearPlanBtn = document.getElementById('clearPlanBtn');
+clearPlanBtn.addEventListener('click', ()=> { selectedRoute=null; activePlan.style.display='none'; planBadge.style.display='none'; document.querySelectorAll('.route-card').forEach(c=> c.classList.remove('selected')); appendAI('Active plan cleared.'); });
+
+// Demo content loader
+const loadDemoContent = document.getElementById('loadDemoContent');
+if (loadDemoContent) loadDemoContent.addEventListener('click', ()=> {
+  const area = document.getElementById('contentArea');
+  area.innerHTML = `<div style="display:flex;flex-direction:column;gap:var(--space-4);max-width:760px;margin:0 auto;">
+    <div style="background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:var(--space-5);border-radius:var(--radius-lg);box-shadow:var(--elev-low);">
+      <h2 style="margin:0 0 4px;font-size:20px;font-weight:600;letter-spacing:.4px;">Demo Knowledge Note</h2>
+      <p style="margin:0 0 12px;font-size:13px;line-height:1.55;color:var(--text-secondary);">Unified staging merges previous editing & semantic context layers. Future: inline backlink surfaces, entity chips, and concept map preview.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="badge">#productivity</span><span class="badge">#learning</span><span class="badge">#systems</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:var(--space-3);">
+      <div class="placeholder-block" style="padding:var(--space-4);">Backlinks<br/><span style=\"font-size:11px;color:var(--text-faint);\">Coming soon</span></div>
+      <div class="placeholder-block" style="padding:var(--space-4);">Semantic Tags</div>
+      <div class="placeholder-block" style="padding:var(--space-4);">Task Extraction</div>
+      <div class="placeholder-block" style="padding:var(--space-4);">Timeline</div>
+    </div>
+  </div>`;
+});
+
+drawInitialCanvas();
+
+// ===== Everyday PARA Dataset (friendly demo) =====
+const paraData = {
+  projects:[
+    { id:'proj-garden', name:'Spring Garden Refresh', description:'Prepare beds, plant tomatoes & herbs, add pollinator flowers', progress:0.55, goals:['Weed beds','Add compost','Plant tomatoes','Mulch paths'], status:'active', why:'Fresh food, calming hobby, outdoor time.' },
+    { id:'proj-reunion', name:'Family Reunion Weekend', description:'Plan July get‑together: lodging, meals, photo sharing, games', progress:0.35, goals:['Confirm dates','Book cabins','Meal plan','Shared photo album'], status:'active', why:'Stronger family bonds & shared memories.' },
+    { id:'proj-health', name:'Healthy Morning Routine', description:'Consistent wake, light stretch, hydration, simple breakfast', progress:0.70, goals:['7:00 wake','Stretch 5 min','Glass of water','Protein breakfast'], status:'active', why:'Energy, mood, long-term wellbeing.' },
+    { id:'proj-italian', name:'Learn Basic Italian', description:'Daily 15‑minute practice + weekly phrase review', progress:0.20, goals:['Daily app session','Weekly review sheet','Practice aloud','Simple phrases'], status:'planning', why:'Upcoming trip & brain stimulation.' },
+    { id:'proj-budget', name:'Monthly Budget Tune-Up', description:'Review subscriptions, track groceries, set auto-savings', progress:0.40, goals:['List subscriptions','Groceries tracking','Set auto-save','Mid-month review'], status:'active', why:'Reduce waste & grow emergency fund.' }
+  ],
+  areas:[
+    { id:'area-home', name:'Home & Household', description:'Maintenance, organization, light cleaning rhythms.' },
+    { id:'area-health', name:'Health & Wellness', description:'Sleep, movement, nutrition, appointments.' },
+    { id:'area-family', name:'Family & Relationships', description:'Communication, gatherings, shared memories.' },
+    { id:'area-growth', name:'Personal Growth', description:'Learning, hobbies, language, reading.' },
+    { id:'area-finance', name:'Finances', description:'Budgeting, saving, bill tracking, planning.' }
+  ],
+  resources:[
+    { id:'res-recipes', name:'Favorite Recipes', description:'Go‑to quick dinners & weekend experiments' },
+    { id:'res-workouts', name:'Exercise Routines', description:'15‑30 min strength & stretch sets' },
+    { id:'res-garden', name:'Garden Notes', description:'Planting dates, seed varieties, soil tips' },
+    { id:'res-budget', name:'Budget Templates', description:'Monthly tracker & yearly overview sheets' },
+    { id:'res-travel', name:'Trip Planning Kit', description:'Packing list, itinerary template, booking checklist' }
+  ],
+  archives:[
+    { id:'arc-2024', name:'Completed 2024 Projects', description:'Declutter challenge, winter pantry restock' },
+    { id:'arc-trips', name:'Past Trip Logs', description:'Weekend coastal visits & mountain hikes' }
+  ],
+  ideas:[
+    { id:'idea-1', title:'Sunday Soup Rotation', body:'Make a simple pot (lentil, minestrone, carrot ginger) every Sunday for easy lunches.' },
+    { id:'idea-2', title:'Mini Herb Drying Rack', body:'Repurpose an old frame + mesh to air-dry basil & mint.' },
+    { id:'idea-3', title:'Two-Minute Evening Reset', body:'Timer: clear counters, set coffee maker, place water glass by bed.' },
+    { id:'idea-4', title:'Photo Archive Afternoon', body:'Sort last year’s photos into albums: family, nature, celebrations.' }
+  ]
+};
+
+// Add PARA section to sidebar
+const sidebar = document.querySelector('.sidebar');
+if(sidebar){
+  const paraBlock = document.createElement('div');
+  paraBlock.innerHTML = `<div class="nav-group" style="margin-top:24px;">
+    <div class="nav-group-title">PARA</div>
+    <div class="nav-item" data-para="projects">Projects</div>
+    <div class="nav-item" data-para="areas">Areas</div>
+    <div class="nav-item" data-para="resources">Resources</div>
+    <div class="nav-item" data-para="archives">Archives</div>
+  </div>`;
+  sidebar.appendChild(paraBlock);
+  paraBlock.querySelectorAll('[data-para]').forEach(el=> el.addEventListener('click', ()=> showPara(el.dataset.para)));
+}
+
+// Enhance content area with ideas & ontology viewer
+const contentArea = document.getElementById('contentArea');
+if(contentArea){
+  const ont = document.createElement('div');
+  ont.id='ontologyPanel';
+  ont.style.margin='0 0 24px';
+  ont.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;">
+    <div style="flex:2;min-width:360px;">
+      <h3 style="margin:0 0 8px;font-size:15px;">Idea Board</h3>
+      <div id="ideaViewer" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;padding:16px;min-height:130px;display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+    <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:8px;">
+      <h3 style="margin:0 0 4px;font-size:15px;">Ideas</h3>
+      <div id="ideaList" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+    <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:8px;">
+      <h3 style="margin:0 0 4px;font-size:15px;">Quick Tags</h3>
+      <div id="ontologyList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;"></div>
+    </div>
+  </div>`;
+  contentArea.prepend(ont);
+  initIdeas();
+}
+
+function initIdeas(){
+  const ideaList=document.getElementById('ideaList'); const viewer=document.getElementById('ideaViewer');
+  if(!ideaList||!viewer) return;
+  paraData.ideas.slice(0,6).forEach(idea=>{
+    const b=document.createElement('button'); b.className='btn small'; b.style.justifyContent='flex-start'; b.textContent=idea.title; b.addEventListener('click', ()=> loadIdea(idea)); ideaList.appendChild(b);
+  });
+  loadIdea(paraData.ideas[0]);
+  const onto=document.getElementById('ontologyList');
+  const entities=[...paraData.projects,...paraData.areas,...paraData.resources].slice(0,12);
+  entities.forEach(e=>{ const tag=document.createElement('div'); tag.className='badge'; tag.style.cursor='pointer'; tag.textContent=e.name.split(' ').slice(0,2).join(' '); tag.title=e.name; tag.addEventListener('click', ()=> appendAI('Entity focus: '+e.name+' — '+(e.description||''))); onto.appendChild(tag); });
+}
+function loadIdea(idea){
+  const viewer=document.getElementById('ideaViewer'); if(!viewer) return;
+  viewer.innerHTML = `<div style="display:flex;align-items:center;gap:10px;">
+    <h4 style="margin:0;font-size:16px;">${idea.title}</h4>
+    <span class='badge'>Idea</span>
+  </div>
+  <p style='margin:6px 0 0;font-size:13px;line-height:1.45;color:var(--text-secondary);'>${idea.body}</p>`;
+  appendAI('Opened idea: '+idea.title);
+}
+function showPara(section){
+  appendAI('Browsing '+section.replace(/^[a-z]/,m=>m.toUpperCase())+'.');
+  activateMode('content');
+  showEntityList(section);
+}
+
+function showEntityList(section){
+  const list = paraData[section]||[];
+  const area = document.getElementById('contentArea');
+  if(!area) return;
+  area.innerHTML = `<div style='display:flex;flex-direction:column;gap:18px;'>
+    <div style='display:flex;align-items:center;gap:10px;'>
+      <h2 style='margin:0;font-size:20px;'>${section.charAt(0).toUpperCase()+section.slice(1)}</h2>
+      <span class='badge' style='font-size:10px;'>${list.length} items</span>
+    </div>
+    <div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;' id='entityGrid'></div>
+  </div>`;
+  const grid = area.querySelector('#entityGrid');
+  list.forEach(ent=> grid.appendChild(renderEntityCard(ent, section)));
+}
+
+function renderEntityCard(ent, section){
+  const card=document.createElement('div');
+  card.style.cssText='border:1px solid var(--border);background:rgba(255,255,255,0.06);padding:12px 14px;border-radius:12px;display:flex;flex-direction:column;gap:6px;cursor:pointer;';
+  card.innerHTML = `<div style='font-weight:600;font-size:14px;'>${ent.name}</div>
+    <div style='font-size:11px;color:var(--text-secondary);line-height:1.35;'>${(ent.description||'').slice(0,110)}</div>
+    ${(section==='projects' && typeof ent.progress==='number')?`<div style='height:6px;border-radius:4px;background:rgba(255,255,255,0.15);overflow:hidden;position:relative;'><div style='position:absolute;inset:0;width:${Math.round(ent.progress*100)}%;background:var(--accent-grad);'></div></div><div style='font-size:10px;color:var(--text-faint);'>${Math.round(ent.progress*100)}% complete</div>`:''}`;
+  card.addEventListener('click', ()=> showEntityNote(ent, section));
+  return card;
+}
+
+function showEntityNote(ent, section){
+  const area=document.getElementById('contentArea'); if(!area) return;
+  const tags = [];
+  if(section==='projects') tags.push('project');
+  else if(section==='areas') tags.push('area');
+  else if(section==='resources') tags.push('resource');
+  else if(section==='archives') tags.push('archive');
+  area.innerHTML = `<div style='max-width:760px;display:flex;flex-direction:column;gap:22px;'>
+    <div style='background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:28px 32px;border-radius:18px;box-shadow:var(--elev-low);display:flex;flex-direction:column;gap:12px;'>
+      <div style='display:flex;flex-wrap:wrap;gap:10px;align-items:center;'>
+        <h1 style='margin:0;font-size:24px;font-weight:600;letter-spacing:.4px;'>${ent.name}</h1>
+        ${tags.map(t=>`<span class='badge' style='font-size:10px;'>${t}</span>`).join('')}
+      </div>
+      <p style='margin:0;font-size:14px;line-height:1.55;color:var(--text-secondary);'>${ent.description||''}</p>
+      ${ent.why?`<div style='font-size:12px;color:var(--text-secondary);line-height:1.5;background:rgba(255,255,255,0.05);padding:10px 12px;border:1px solid var(--border);border-radius:10px;'><strong style="color:var(--accent);">Why:</strong> ${ent.why}</div>`:''}
+      ${(section==='projects' && ent.goals)?`<div style='display:flex;flex-direction:column;gap:8px;'>
+        <h3 style='margin:0;font-size:13px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-secondary);'>Goals</h3>
+        <div style='display:flex;flex-wrap:wrap;gap:6px;'>${ent.goals.map(g=>`<span class='badge' style='font-size:10px;'>${g}</span>`).join('')}</div>
+      </div>`:''}
+      ${(section==='projects' && typeof ent.progress==='number')?`<div><div style='height:8px;border-radius:5px;background:rgba(255,255,255,0.12);overflow:hidden;position:relative;margin-bottom:6px;'><div style='position:absolute;inset:0;width:${Math.round(ent.progress*100)}%;background:var(--accent-grad);'></div></div><div style='font-size:11px;color:var(--text-faint);'>Progress: ${Math.round(ent.progress*100)}%</div></div>`:''}
+      <div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;'>
+        <div class='placeholder-block' style='padding:14px;'>Next Actions<br/><span style='font-size:11px;color:var(--text-faint);'>Add soon</span></div>
+        <div class='placeholder-block' style='padding:14px;'>Related Notes<br/><span style='font-size:11px;color:var(--text-faint);'>Coming</span></div>
+        <div class='placeholder-block' style='padding:14px;'>Reminders<br/><span style='font-size:11px;color:var(--text-faint);'>Optional</span></div>
+      </div>
+    </div>
+  </div>`;
+  appendAI('Loaded '+(tags[0]||'item')+': '+ent.name);
+}
+
+// Populate project goals panel
+const projectGoalsArea = document.getElementById('projectGoalsArea');
+if(projectGoalsArea){
+  paraData.projects.forEach(p=> projectGoalsArea.appendChild(renderProjectGoal(p)));
+  const total=document.getElementById('projectTotal'); if(total) total.textContent=paraData.projects.length;
+}
+function renderProjectGoal(p){
+  const wrap=document.createElement('div');
+  wrap.style.cssText='border:1px solid var(--border);background:rgba(255,255,255,0.05);padding:12px 14px;border-radius:10px;display:flex;flex-direction:column;gap:6px;cursor:pointer;margin-bottom:10px;';
+  wrap.innerHTML = `<div style='display:flex;align-items:center;justify-content:space-between;gap:10px;'>
+    <div style='font-size:13px;font-weight:600;'>${p.name}</div>
+    <div style='font-size:10px;letter-spacing:.5px;color:var(--text-faint);text-transform:uppercase;'>${p.status}</div>
+  </div>
+  <div style='font-size:11px;color:var(--text-secondary);line-height:1.4;'>${p.description}</div>
+  <div style='height:6px;border-radius:4px;background:rgba(255,255,255,0.12);overflow:hidden;position:relative;'>
+    <div style='position:absolute;inset:0;width:${Math.round(p.progress*100)}%;background:var(--accent-grad);border-radius:4px;'></div>
+  </div>
+  <div style='display:flex;flex-wrap:wrap;gap:4px;'>${p.goals.map(g=>`<span class='badge' style='font-size:9px;'>${g}</span>`).join('')}</div>`;
+  wrap.addEventListener('click', ()=> { activateMode('content'); showEntityNote(p,'projects'); });
+  return wrap;
+}
+
+// Add bottom padding to scroll areas for chat visibility
+document.querySelectorAll('.scroll-area').forEach(a=> a.style.paddingBottom='260px');
+
+// Initial friendly dashboard load
+(function loadInitialDashboard(){
+  const area = document.getElementById('contentArea');
+  if(!area) return;
+  const todayProjects = paraData.projects.filter(p=> p.status==='active').slice(0,3);
+  area.innerHTML = `<div style='display:flex;flex-direction:column;gap:26px;max-width:900px;margin:0 auto;'>
+    <div style='background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:28px 30px;border-radius:18px;display:flex;flex-direction:column;gap:14px;'>
+      <h2 style='margin:0;font-size:22px;'>Daily Home Dashboard</h2>
+      <p style='margin:0;font-size:14px;line-height:1.55;color:var(--text-secondary);'>Overview of everyday life projects & routines. Click anything to open. Ask for help (e.g. "easy dinner" or "budget tip").</p>
+      <div style='display:flex;flex-wrap:wrap;gap:8px;'>
+        <span class='badge'>morning</span><span class='badge'>family</span><span class='badge'>health</span><span class='badge'>budget</span>
+      </div>
+    </div>
+    <div style='display:flex;flex-direction:column;gap:12px;'>
+      <h3 style='margin:0;font-size:15px;'>Active Projects</h3>
+      <div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;' id='dashProjects'></div>
+    </div>
+  </div>`;
+  const dashGrid = area.querySelector('#dashProjects');
+  todayProjects.forEach(p=> dashGrid.appendChild(renderEntityCard(p,'projects')));
+})();
+</script>
+</body>
+</html>

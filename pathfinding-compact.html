@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🧭 Semantic Pathfinding - Compact AI Assistant</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #fff;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+      flex-shrink: 0;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 5px;
+      background: linear-gradient(135deg, #FFD700, #FF4500);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      margin-bottom: 15px;
+    }
+
+    .back-link {
+      color: #FFD700;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      min-height: 0;
+    }
+
+    .upper-section {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 300px 1fr 300px;
+      gap: 20px;
+      min-height: 400px;
+    }
+
+    .lower-section {
+      height: 250px;
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(15px);
+      border-radius: 15px;
+      border: 1px solid rgba(255, 215, 0, 0.2);
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .input-panel,
+    .results-panel {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      overflow-y: auto;
+    }
+
+    .visualization-panel {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(15px);
+      border-radius: 15px;
+      padding: 15px;
+      border: 1px solid rgba(255, 215, 0, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 15px;
+      color: #FFD700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .goal-input {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #e2e8f0;
+      font-size: 0.9rem;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #FFD700;
+      box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+    }
+
+    .pathfind-button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #FFD700, #FF4500);
+      border: none;
+      border-radius: 8px;
+      color: #000;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 15px;
+    }
+
+    .pathfind-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
+    }
+
+    .canvas-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      background: radial-gradient(circle at center, rgba(255, 215, 0, 0.1), transparent 70%);
+    }
+
+    #pathfinding-canvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 10px;
+    }
+
+    .path-results {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .path-option {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      border-left: 3px solid;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.85rem;
+    }
+
+    .path-option.fastest {
+      border-left-color: #22c55e;
+    }
+
+    .path-option.safest {
+      border-left-color: #3b82f6;
+    }
+
+    .path-option.learning {
+      border-left-color: #a855f7;
+    }
+
+    .path-option.creative {
+      border-left-color: #f59e0b;
+    }
+
+    .path-option:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateX(3px);
+    }
+
+    /* AI Chat Bar Styles */
+    .ai-chat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+    }
+
+    .ai-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+    }
+
+    .api-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      animation: pulse 2s infinite;
+    }
+
+    .api-indicator.connected {
+      background: #22c55e;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .api-setup {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .api-key-input {
+      width: 200px;
+      padding: 6px 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 0.8rem;
+    }
+
+    .api-button {
+      padding: 6px 12px;
+      background: rgba(255, 215, 0, 0.2);
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      border-radius: 6px;
+      color: #FFD700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .api-button:hover {
+      background: rgba(255, 215, 0, 0.3);
+    }
+
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      max-height: 120px;
+    }
+
+    .chat-message {
+      margin-bottom: 8px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    .chat-message.user {
+      background: rgba(255, 215, 0, 0.2);
+      margin-left: 20px;
+      text-align: right;
+    }
+
+    .chat-message.ai {
+      background: rgba(59, 130, 246, 0.2);
+      margin-right: 20px;
+    }
+
+    .chat-input-area {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.9rem;
+      resize: none;
+      min-height: 40px;
+      max-height: 80px;
+    }
+
+    .chat-input:focus {
+      outline: none;
+      border-color: #FFD700;
+      box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+    }
+
+    .send-button {
+      padding: 10px 15px;
+      background: linear-gradient(135deg, #FFD700, #FF4500);
+      border: none;
+      border-radius: 8px;
+      color: #000;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .send-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+    }
+
+    .send-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .example-prompts {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .example-prompt {
+      padding: 4px 8px;
+      background: rgba(255, 215, 0, 0.1);
+      border: 1px solid rgba(255, 215, 0, 0.2);
+      border-radius: 12px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .example-prompt:hover {
+      background: rgba(255, 215, 0, 0.2);
+    }
+
+    @media (max-width: 1200px) {
+      .upper-section {
+        grid-template-columns: 1fr;
+        gap: 15px;
+        height: auto;
+        min-height: 300px;
+      }
+
+      .lower-section {
+        height: 300px;
+      }
+    }
+
+    .loading-indicator {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px;
+      color: #FFD700;
+      font-size: 0.9rem;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255, 215, 0, 0.3);
+      border-top: 2px solid #FFD700;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>🧭 Semantic Pathfinding AI</h1>
+      <p class="subtitle">GPS for Goals with AI-Powered Route Generation</p>
+      <a href="index.html" class="back-link">← Back to PKM System</a>
+    </header>
+
+    <div class="main-content">
+      <!-- Upper Section: Traditional Pathfinding Interface -->
+      <div class="upper-section">
+        <!-- Input Panel -->
+        <div class="input-panel">
+          <h3 class="panel-title">🎯 Goal Setup</h3>
+
+          <div class="goal-input">
+            <label for="start-goal">Starting Point:</label>
+            <input type="text" id="start-goal" placeholder="e.g., Complete beginner">
+          </div>
+
+          <div class="goal-input">
+            <label for="end-goal">Target Goal:</label>
+            <input type="text" id="end-goal" placeholder="e.g., Bake perfect apple pie">
+          </div>
+
+          <button class="pathfind-button" onclick="findPaths()">
+            🧭 Generate Routes
+          </button>
+
+          <div class="examples">
+            <h4 style="margin-bottom: 8px; color: #e2e8f0; font-size: 0.9rem;">Quick Examples:</h4>
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+              <button class="example-prompt" onclick="loadExample('baking')">🥧 Baking</button>
+              <button class="example-prompt" onclick="loadExample('music')">🎵 Music</button>
+              <button class="example-prompt" onclick="loadExample('business')">🌍 Business</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visualization Panel -->
+        <div class="visualization-panel">
+          <h3 class="panel-title">🗺️ Route Map</h3>
+          <div class="canvas-container">
+            <canvas id="pathfinding-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="results-panel">
+          <h3 class="panel-title">🚀 Route Options</h3>
+          <div class="path-results" id="path-results">
+            <p style="text-align: center; opacity: 0.6; margin-top: 30px; font-size: 0.85rem;">
+              Generate routes to see pathway options
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lower Section: AI Chat Bar -->
+      <div class="lower-section">
+        <div class="ai-chat-header">
+          <div class="ai-status">
+            <h3 class="panel-title" style="margin: 0;">🤖 AI Route Assistant</h3>
+            <div class="api-indicator" id="openai-indicator" title="OpenAI Status"></div>
+            <span style="font-size: 0.8rem;">OpenAI</span>
+            <div class="api-indicator" id="gemini-indicator" title="Gemini Status"></div>
+            <span style="font-size: 0.8rem;">Gemini</span>
+          </div>
+          <div class="api-setup">
+            <input type="password" id="openai-key" class="api-key-input" placeholder="OpenAI API Key">
+            <input type="password" id="gemini-key" class="api-key-input" placeholder="Gemini API Key">
+            <button class="api-button" onclick="setupAPI()">Connect</button>
+          </div>
+        </div>
+
+        <div class="chat-container">
+          <div class="example-prompts">
+            <div class="example-prompt" onclick="sendQuickPrompt('How do I get from beginner to expert faster?')">⚡
+              Optimize Route</div>
+            <div class="example-prompt" onclick="sendQuickPrompt('What are the biggest risks in this path?')">⚠️ Risk
+              Analysis</div>
+            <div class="example-prompt" onclick="sendQuickPrompt('Generate a custom learning path for my goals')">🎯
+              Custom Path</div>
+            <div class="example-prompt" onclick="sendQuickPrompt('Break down this goal into smaller steps')">📋 Detailed
+              Steps</div>
+          </div>
+
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-message ai">
+              👋 Hi! I'm your AI pathfinding assistant. Connect your API keys above and ask me anything about optimizing
+              your goal routes, breaking down complex objectives, or generating personalized learning paths.
+            </div>
+          </div>
+
+          <div class="loading-indicator" id="ai-loading">
+            <div class="spinner"></div>
+            <span>AI is thinking...</span>
+          </div>
+
+          <div class="chat-input-area">
+            <textarea id="chat-input" class="chat-input"
+              placeholder="Ask me about your pathfinding goals, route optimization, or anything else..."
+              rows="1"></textarea>
+            <button class="send-button" onclick="sendMessage()" id="send-btn">
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="semantic-system.js"></script>
+  <script src="semantic-pathfinding-engine.js"></script>
+  <script>
+    // Initialize pathfinding system
+    const semanticSystem = new SemanticSystem();
+    const pathfinder = new SemanticPathfindingEngine(semanticSystem);
+
+    let canvas, ctx;
+    let currentPaths = [];
+    let apiKeys = {
+      openai: null,
+      gemini: null
+    };
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      canvas = document.getElementById('pathfinding-canvas');
+      ctx = canvas.getContext('2d');
+
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      // Auto-resize chat input
+      const chatInput = document.getElementById('chat-input');
+      chatInput.addEventListener('input', autoResizeTextarea);
+      chatInput.addEventListener('keypress', handleChatKeypress);
+
+      drawPlaceholder();
+      loadStoredAPIKeys();
+
+      // Check for URL parameters to pre-fill goal
+      const urlParams = new URLSearchParams(window.location.search);
+      const goalParam = urlParams.get('goal');
+      if (goalParam) {
+        document.getElementById('end-goal').value = goalParam;
+        document.getElementById('start-goal').value = 'Current situation';
+        addChatMessage('ai', `🎯 Goal imported from PKM system: "${goalParam}". Ready to generate pathfinding routes!`);
+      }
+    });
+
+    function resizeCanvas() {
+      const container = canvas.parentElement;
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      if (currentPaths.length === 0) {
+        drawPlaceholder();
+      } else {
+        visualizePaths(currentPaths);
+      }
+    }
+
+    function autoResizeTextarea() {
+      const textarea = document.getElementById('chat-input');
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 80) + 'px';
+    }
+
+    function handleChatKeypress(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }
+
+    // API Management
+    function setupAPI() {
+      const openaiKey = document.getElementById('openai-key').value.trim();
+      const geminiKey = document.getElementById('gemini-key').value.trim();
+
+      if (openaiKey) {
+        apiKeys.openai = openaiKey;
+        localStorage.setItem('openai_api_key', openaiKey);
+        document.getElementById('openai-indicator').classList.add('connected');
+        addChatMessage('ai', '✅ OpenAI connected successfully!');
+      }
+
+      if (geminiKey) {
+        apiKeys.gemini = geminiKey;
+        localStorage.setItem('gemini_api_key', geminiKey);
+        document.getElementById('gemini-indicator').classList.add('connected');
+        addChatMessage('ai', '✅ Gemini connected successfully!');
+      }
+
+      if (!openaiKey && !geminiKey) {
+        addChatMessage('ai', '⚠️ Please enter at least one API key to enable AI assistance.');
+        return;
+      }
+
+      // Clear the input fields for security
+      document.getElementById('openai-key').value = '';
+      document.getElementById('gemini-key').value = '';
+
+      updateSendButtonState();
+    }
+
+    function loadStoredAPIKeys() {
+      const storedOpenAI = localStorage.getItem('openai_api_key');
+      const storedGemini = localStorage.getItem('gemini_api_key');
+
+      if (storedOpenAI) {
+        apiKeys.openai = storedOpenAI;
+        document.getElementById('openai-indicator').classList.add('connected');
+      }
+
+      if (storedGemini) {
+        apiKeys.gemini = storedGemini;
+        document.getElementById('gemini-indicator').classList.add('connected');
+      }
+
+      updateSendButtonState();
+    }
+
+    function updateSendButtonState() {
+      const sendBtn = document.getElementById('send-btn');
+      const hasAPI = apiKeys.openai || apiKeys.gemini;
+      sendBtn.disabled = !hasAPI;
+      sendBtn.textContent = hasAPI ? 'Send' : 'Connect AI';
+    }
+
+    // Chat Functions
+    function addChatMessage(type, message) {
+      const messagesContainer = document.getElementById('chat-messages');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `chat-message ${type}`;
+      messageDiv.textContent = message;
+      messagesContainer.appendChild(messageDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function sendQuickPrompt(prompt) {
+      document.getElementById('chat-input').value = prompt;
+      sendMessage();
+    }
+
+    async function sendMessage() {
+      const chatInput = document.getElementById('chat-input');
+      const message = chatInput.value.trim();
+
+      if (!message) return;
+      if (!apiKeys.openai && !apiKeys.gemini) {
+        addChatMessage('ai', '⚠️ Please connect your API keys first.');
+        return;
+      }
+
+      // Add user message
+      addChatMessage('user', message);
+      chatInput.value = '';
+      autoResizeTextarea();
+
+      // Show loading
+      document.getElementById('ai-loading').style.display = 'flex';
+
+      try {
+        // Get current pathfinding context
+        const context = {
+          startGoal: document.getElementById('start-goal').value,
+          endGoal: document.getElementById('end-goal').value,
+          currentPaths: currentPaths,
+          timestamp: new Date().toISOString()
+        };
+
+        const response = await callAI(message, context);
+        addChatMessage('ai', response);
+
+      } catch (error) {
+        console.error('AI API Error:', error);
+        addChatMessage('ai', '❌ Sorry, I encountered an error. Please check your API keys and try again.');
+      } finally {
+        document.getElementById('ai-loading').style.display = 'none';
+      }
+    }
+
+    async function callAI(message, context) {
+      // Try OpenAI first, fallback to Gemini
+      if (apiKeys.openai) {
+        return await callOpenAI(message, context);
+      } else if (apiKeys.gemini) {
+        return await callGemini(message, context);
+      }
+      throw new Error('No API keys available');
+    }
+
+    async function callOpenAI(message, context) {
+      const systemPrompt = `You are a semantic pathfinding AI assistant. Help users optimize their goal achievement routes.
+
+Current Context:
+- Start: ${context.startGoal || 'Not set'}
+- Goal: ${context.endGoal || 'Not set'}
+- Available Routes: ${context.currentPaths.length} paths generated
+
+Provide concise, actionable advice for pathfinding optimization, route analysis, and goal achievement strategies.`;
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKeys.openai}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: message }
+          ],
+          max_tokens: 500,
+          temperature: 0.7
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0]?.message?.content || 'No response generated';
+    }
+
+    async function callGemini(message, context) {
+      const prompt = `You are a semantic pathfinding AI assistant. Current context: Start="${context.startGoal}", Goal="${context.endGoal}", Routes=${context.currentPaths.length}. User question: ${message}`;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKeys.gemini}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.candidates[0]?.content?.parts[0]?.text || 'No response generated';
+    }
+
+    // Pathfinding Functions (simplified versions from the original)
+    function loadExample(type) {
+      const examples = {
+        baking: {
+          start: 'Complete beginner at baking',
+          end: 'Bake a perfect apple pie'
+        },
+        music: {
+          start: 'No music experience',
+          end: 'Create a hit song'
+        },
+        business: {
+          start: 'Employee with business idea',
+          end: 'International business owner'
+        }
+      };
+
+      const example = examples[type];
+      document.getElementById('start-goal').value = example.start;
+      document.getElementById('end-goal').value = example.end;
+    }
+
+    async function findPaths() {
+      const startGoal = document.getElementById('start-goal').value.trim();
+      const endGoal = document.getElementById('end-goal').value.trim();
+
+      if (!startGoal || !endGoal) {
+        addChatMessage('ai', '⚠️ Please enter both starting point and target goal.');
+        return;
+      }
+
+      // Show loading state
+      document.getElementById('path-results').innerHTML = '<p style="text-align: center; color: #FFD700;">Generating pathways...</p>';
+
+      try {
+        // Simulate pathfinding
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        const paths = generateDemoPaths(startGoal, endGoal);
+        currentPaths = paths;
+
+        displayPaths(paths);
+        visualizePaths(paths);
+
+        addChatMessage('ai', `🎉 Generated ${paths.length} optimal routes from "${startGoal}" to "${endGoal}". Ask me about optimizing any specific route!`);
+
+      } catch (error) {
+        console.error('Pathfinding error:', error);
+        document.getElementById('path-results').innerHTML = '<p style="color: #f87171;">Error generating paths. Please try again.</p>';
+      }
+    }
+
+    function generateDemoPaths(start, end) {
+      return [
+        {
+          type: 'fastest',
+          name: 'Speed Route',
+          estimatedTime: '2-4 weeks',
+          difficulty: 0.6,
+          successProbability: 0.75,
+          steps: ['Research basics', 'Practice fundamentals', 'Get tools', 'Follow methodology', 'Execute', 'Achieve goal']
+        },
+        {
+          type: 'safest',
+          name: 'Safe Route',
+          estimatedTime: '2-3 months',
+          difficulty: 0.3,
+          successProbability: 0.95,
+          steps: ['Take course', 'Practice with feedback', 'Build skills', 'Master prerequisites', 'Apply systematically', 'Achieve with confidence']
+        },
+        {
+          type: 'learning',
+          name: 'Learning Route',
+          estimatedTime: '3-6 months',
+          difficulty: 0.7,
+          successProbability: 0.85,
+          steps: ['Study theory', 'Experiment', 'Learn from mistakes', 'Develop expertise', 'Innovate', 'Achieve mastery']
+        },
+        {
+          type: 'creative',
+          name: 'Creative Route',
+          estimatedTime: '1-4 months',
+          difficulty: 0.8,
+          successProbability: 0.65,
+          steps: ['Brainstorm approaches', 'Combine methods', 'Experiment boldly', 'Iterate rapidly', 'Create solution', 'Breakthrough']
+        }
+      ];
+    }
+
+    function displayPaths(paths) {
+      const resultsContainer = document.getElementById('path-results');
+      resultsContainer.innerHTML = '';
+
+      paths.forEach((path, index) => {
+        const pathElement = document.createElement('div');
+        pathElement.className = `path-option ${path.type}`;
+        pathElement.onclick = () => highlightPath(index);
+
+        pathElement.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <div style="font-weight: 700;">${path.name}</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8;">${Math.round(path.successProbability * 100)}%</div>
+                    </div>
+                    <div style="font-size: 0.75rem; opacity: 0.7;">${path.estimatedTime} • Difficulty ${Math.round(path.difficulty * 10)}/10</div>
+                `;
+
+        resultsContainer.appendChild(pathElement);
+      });
+    }
+
+    function visualizePaths(paths) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = Math.min(canvas.width, canvas.height) * 0.25;
+
+      // Draw simplified path visualization
+      paths.forEach((path, pathIndex) => {
+        const color = getPathColor(path.type);
+        const steps = 6; // Simplified to 6 steps
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        for (let i = 0; i < steps; i++) {
+          const angle = (i / (steps - 1)) * Math.PI - Math.PI / 2;
+          const x = centerX + Math.cos(angle) * radius;
+          const y = centerY + Math.sin(angle) * radius + pathIndex * 15 - 22.5;
+
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+
+          // Draw node
+          ctx.save();
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        ctx.stroke();
+      });
+
+      // Draw start and end points
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.arc(centerX - radius, centerY, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath();
+      ctx.arc(centerX + radius, centerY, 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function getPathColor(type) {
+      const colors = {
+        fastest: '#22c55e',
+        safest: '#3b82f6',
+        learning: '#a855f7',
+        creative: '#f59e0b'
+      };
+      return colors[type] || '#ffffff';
+    }
+
+    function highlightPath(index) {
+      // Remove previous highlights
+      document.querySelectorAll('.path-option').forEach(el => {
+        el.style.background = 'rgba(255, 255, 255, 0.05)';
+      });
+
+      // Highlight selected path
+      const pathElements = document.querySelectorAll('.path-option');
+      pathElements[index].style.background = 'rgba(255, 215, 0, 0.2)';
+
+      const selectedPath = currentPaths[index];
+      addChatMessage('ai', `🎯 Selected ${selectedPath.name}: ${selectedPath.estimatedTime}, ${Math.round(selectedPath.successProbability * 100)}% success rate. Want me to break this down further?`);
+    }
+
+    function drawPlaceholder() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🧭 Route visualization', centerX, centerY - 5);
+      ctx.fillText('Generate paths to see routes', centerX, centerY + 15);
+    }
+  </script>
+</body>
+
+</html>

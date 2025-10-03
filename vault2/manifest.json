@@ -1,0 +1,136 @@
+{
+  "user": "Margaret Thompson",
+  "title": "Margaret's Personal Knowledge Vault",
+  "description": "Personal knowledge management system for Margaret Thompson - retired teacher, sewing business owner, grandmother, and active community volunteer",
+  "version": "1.0.0",
+  "created": "2024-12-31",
+  "lastModified": "2024-12-31",
+  "tags": [
+    "personal",
+    "business",
+    "family",
+    "retirement",
+    "crafts",
+    "community"
+  ],
+  "goals": {
+    "personal": [
+      "Maintain strong family relationships and create lasting memories",
+      "Build successful small sewing business while maintaining quality",
+      "Stay healthy and active for many years to come",
+      "Continue learning and growing intellectually",
+      "Contribute meaningfully to community through volunteer work"
+    ],
+    "business": [
+      "Grow Maggie's Stitches to sustainable $3000/month revenue",
+      "Develop regular teaching workshop program",
+      "Build strong customer base through referrals and quality work",
+      "Create efficient studio organization and workflow systems"
+    ],
+    "family": [
+      "Be present and supportive for all grandchildren's milestones",
+      "Host memorable holiday and birthday celebrations",
+      "Coordinate regular family gatherings and traditions",
+      "Document family history and stories for future generations"
+    ],
+    "community": [
+      "Continue regular volunteer commitments at community center and senior center",
+      "Participate actively in church quilting circle and charitable projects",
+      "Support local literacy programs through reading volunteer work",
+      "Mentor younger sewers and crafters in the community"
+    ],
+    "health": [
+      "Maintain regular exercise routine and walking schedule",
+      "Keep up with preventive healthcare appointments",
+      "Practice good nutrition and mindful eating habits",
+      "Balance activity with rest and stress management"
+    ]
+  },
+  "files": [
+    {
+      "path": "01_person.md",
+      "type": "person",
+      "title": "Margaret Thompson - Personal Profile",
+      "description": "Core personal information, life story, and character profile"
+    },
+    {
+      "path": "02_business-project.md",
+      "type": "project",
+      "title": "Maggie's Stitches Business",
+      "description": "Sewing business goals, expansion plans, and customer service approach"
+    },
+    {
+      "path": "03_family-coordination.md",
+      "type": "project",
+      "title": "Family Coordination and Events",
+      "description": "Managing large family relationships, events, and traditions"
+    },
+    {
+      "path": "04_volunteer-activities.md",
+      "type": "project",
+      "title": "Community Volunteer Work",
+      "description": "Regular volunteer commitments and community involvement"
+    },
+    {
+      "path": "05_health-wellness.md",
+      "type": "project",
+      "title": "Health and Wellness Management",
+      "description": "Healthcare coordination, fitness goals, and wellness activities"
+    },
+    {
+      "path": "06_hobbies-learning.md",
+      "type": "project",
+      "title": "Hobbies and Lifelong Learning",
+      "description": "Book club, gardening, technology learning, and creative pursuits"
+    },
+    {
+      "path": "07_seasonal-goals.md",
+      "type": "concept",
+      "title": "Life Philosophy and Seasonal Goals",
+      "description": "Personal philosophy, yearly planning, and life rhythm management"
+    },
+    {
+      "path": "08_business-operations.md",
+      "type": "task",
+      "title": "Daily Business Operations",
+      "description": "Day-to-day sewing business tasks, scheduling, and customer management"
+    },
+    {
+      "path": "09_social-calendar.md",
+      "type": "project",
+      "title": "Social Calendar and Events",
+      "description": "Social commitments, friend groups, entertaining, and cultural activities"
+    }
+  ],
+  "themes": {
+    "primary": [
+      "family",
+      "community",
+      "craftsmanship",
+      "service",
+      "growth"
+    ],
+    "values": [
+      "quality",
+      "connection",
+      "generosity",
+      "learning",
+      "tradition"
+    ],
+    "focus_areas": [
+      "relationships",
+      "business",
+      "health",
+      "creativity",
+      "legacy"
+    ]
+  },
+  "statistics": {
+    "total_files": 9,
+    "projects": 6,
+    "tasks": 1,
+    "concepts": 1,
+    "people": 1,
+    "last_review": "2024-12-31"
+  }
+}

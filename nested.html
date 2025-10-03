@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PKM Semantic Vault - Nested Knowledge Explorer</title>
+    <style>
+        :root {
+            --bg: #0a1628;
+            --surface: #142536;
+            --surface-hover: #1a2f43;
+            --border: #1f2d3b;
+            --text: #e6eef6;
+            --muted: #8b9dc3;
+            --accent: #64d2ff;
+            --accent-dim: #4a9ac7;
+            --progress: #4ade80;
+            --warning: #fbbf24;
+            --purple: #a855f7;
+            --orange: #f97316;
+            --green: #22c55e;
+            --blue: #3b82f6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            height: 100vh;
+        }
+
+        /* Left Sidebar - Nested Tree Navigation */
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 20px 0;
+        }
+
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .sidebar-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .sidebar-stats {
+            font-size: 0.85em;
+            color: var(--muted);
+        }
+
+        /* Tree Structure */
+        .tree {
+            padding: 0 12px;
+        }
+
+        .tree-node {
+            margin-bottom: 4px;
+        }
+
+        .tree-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9em;
+            position: relative;
+        }
+
+        .tree-item:hover {
+            background: var(--surface-hover);
+        }
+
+        .tree-item.active {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .tree-item.active .tree-icon {
+            color: var(--bg);
+        }
+
+        .tree-toggle {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 6px;
+            font-size: 10px;
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+        .tree-toggle.expandable:hover {
+            color: var(--accent);
+        }
+
+        .tree-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .tree-label {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tree-count {
+            font-size: 0.75em;
+            color: var(--muted);
+            background: var(--border);
+            padding: 1px 5px;
+            border-radius: 8px;
+            margin-left: 6px;
+        }
+
+        .tree-children {
+            margin-left: 20px;
+            border-left: 1px solid var(--border);
+            padding-left: 8px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .tree-children.expanded {
+            display: block;
+        }
+
+        /* Category Color Coding */
+        .tree-item[data-type="person"] .tree-icon { color: var(--purple); }
+        .tree-item[data-type="concept"] .tree-icon { color: var(--blue); }
+        .tree-item[data-type="project"] .tree-icon { color: var(--green); }
+        .tree-item[data-type="task"] .tree-icon { color: var(--orange); }
+        .tree-item[data-type="note"] .tree-icon { color: var(--muted); }
+
+        /* Main Content Area */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .content-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .breadcrumb {
+            font-size: 0.85em;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .breadcrumb-item {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .breadcrumb-item:hover {
+            text-decoration: underline;
+        }
+
+        .content-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .content-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85em;
+            color: var(--muted);
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .content-body {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            background: var(--bg);
+        }
+
+        /* Content Rendering */
+        .content-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .markdown-content {
+            line-height: 1.7;
+        }
+
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3 {
+            color: var(--text);
+            margin: 20px 0 10px;
+        }
+
+        .markdown-content h1 { font-size: 1.3em; }
+        .markdown-content h2 { font-size: 1.2em; }
+        .markdown-content h3 { font-size: 1.1em; }
+
+        .markdown-content p {
+            margin-bottom: 15px;
+        }
+
+        .markdown-content ul,
+        .markdown-content ol {
+            margin: 15px 0;
+            padding-left: 25px;
+        }
+
+        .markdown-content li {
+            margin-bottom: 5px;
+        }
+
+        .markdown-content code {
+            background: var(--surface);
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+
+        .markdown-content blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 15px;
+            margin: 15px 0;
+            font-style: italic;
+            color: var(--muted);
+        }
+
+        /* Links and References */
+        .links-section {
+            background: var(--surface);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .link-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .link-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg);
+            border-radius: 6px;
+            text-decoration: none;
+            color: var(--text);
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+
+        .link-item:hover {
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .link-icon {
+            font-size: 14px;
+        }
+
+        .link-label {
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        /* Search and Filters */
+        .search-bar {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-input {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text);
+            font-size: 0.9em;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -320px;
+                height: 100vh;
+                z-index: 100;
+                transition: left 0.3s ease;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+        }
+
+        /* Loading States */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--muted);
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top: 2px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Task Lists */
+        .task-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-checkbox {
+            margin-top: 4px;
+        }
+
+        .task-text {
+            flex: 1;
+            font-size: 0.9em;
+        }
+
+        .task-text.completed {
+            text-decoration: line-through;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Left Sidebar: Nested Navigation Tree -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">📚 Knowledge Vault</div>
+                <div class="sidebar-stats" id="vaultStats">Loading...</div>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" class="search-input" placeholder="Search notes..." id="searchInput">
+            </div>
+
+            <nav class="tree" id="knowledgeTree">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading knowledge structure...
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="content-header">
+                <div class="breadcrumb" id="breadcrumb">
+                    <a href="#" class="breadcrumb-item">Vault</a>
+                </div>
+                <h1 class="content-title" id="contentTitle">Welcome to Your Knowledge Vault</h1>
+                <div class="content-meta" id="contentMeta">
+                    <div class="meta-item">
+                        <span>📄</span>
+                        <span id="noteCount">0 notes</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>🔗</span>
+                        <span id="linkCount">0 links</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>⏰</span>
+                        <span id="lastUpdated">Never</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-body" id="contentBody">
+                <div class="content-section">
+                    <div class="section-title">Getting Started</div>
+                    <div class="markdown-content">
+                        <p>Welcome to your nested knowledge management system. Use the tree navigation on the left to explore your knowledge structure.</p>
+                        <p>This interface organizes your notes hierarchically, showing the natural connections and categories in your knowledge base.</p>
+                    </div>
+                </div>
+
+                <div class="links-section">
+                    <div class="section-title">Quick Actions</div>
+                    <div class="link-grid">
+                        <a href="#" class="link-item" onclick="loadVault()">
+                            <span class="link-icon">📁</span>
+                            <span class="link-label">Load Vault</span>
+                        </a>
+                        <a href="goals.html" class="link-item">
+                            <span class="link-icon">🎯</span>
+                            <span class="link-label">View Goals</span>
+                        </a>
+                        <a href="knowledge-builder-demo.html" class="link-item">
+                            <span class="link-icon">🗺️</span>
+                            <span class="link-label">AI Builder</span>
+                        </a>
+                        <a href="index.html" class="link-item">
+                            <span class="link-icon">📊</span>
+                            <span class="link-label">Dashboard View</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Knowledge management system
+        let notes = [];
+        let currentNode = null;
+        let treeData = {};
+
+        // Icons for different content types
+        const typeIcons = {
+            person: '👤',
+            concept: '💡',
+            project: '📁',
+            task: '✅',
+            note: '📝',
+            research: '🔬',
+            meeting: '💼',
+            idea: '💭',
+            health: '💚',
+            travel: '✈️',
+            family: '👨‍👩‍👧‍👦',
+            career: '💼',
+            biography: '📖'
+        };
+
+        // Initialize the application
+        async function init() {
+            console.log('Initializing Nested PKM Interface...');
+            setupEventListeners();
+            await loadVault();
+        }
+
+        function setupEventListeners() {
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', (e) => {
+                filterTree(e.target.value);
+            });
+        }
+
+        async function loadVault() {
+            try {
+                console.log('Loading vault...');
+                document.getElementById('knowledgeTree').innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading knowledge structure...
+                    </div>
+                `;
+
+                // Load manifest
+                const manifestResponse = await fetch('./vault/manifest.json');
+                const manifest = await manifestResponse.json();
+
+                // Load all files
+                const filePromises = manifest.files.map(async (filename) => {
+                    const response = await fetch(`./vault/${filename}`);
+                    const content = await response.text();
+                    const frontmatter = parseFrontmatter(content);
+
+                    return {
+                        filename,
+                        content,
+                        frontmatter,
+                        title: frontmatter.title || filename.replace('.md', ''),
+                        type: frontmatter.type || 'note',
+                        sem: frontmatter.sem || '',
+                        links: frontmatter.links || []
+                    };
+                });
+
+                notes = await Promise.all(filePromises);
+                console.log(`Loaded ${notes.length} notes`);
+
+                // Build tree structure
+                buildTreeStructure();
+                renderTree();
+                updateStats();
+
+            } catch (error) {
+                console.error('Error loading vault:', error);
+                document.getElementById('knowledgeTree').innerHTML = `
+                    <div style="padding: 20px; color: var(--warning); text-align: center;">
+                        <div>⚠️ Error loading vault</div>
+                        <div style="font-size: 0.8em; margin-top: 8px;">${error.message}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function parseFrontmatter(content) {
+            const match = content.match(/^---\s*\n(.*?)\n---/s);
+            if (!match) return {};
+
+            const yaml = match[1];
+            const frontmatter = {};
+
+            yaml.split('\n').forEach(line => {
+                const colonIndex = line.indexOf(':');
+                if (colonIndex > 0) {
+                    const key = line.substring(0, colonIndex).trim();
+                    let value = line.substring(colonIndex + 1).trim();
+
+                    // Handle arrays
+                    if (value.startsWith('[') && value.endsWith(']')) {
+                        value = value.slice(1, -1).split(',').map(s => s.trim().replace(/['"]/g, ''));
+                    }
+
+                    frontmatter[key] = value;
+                }
+            });
+
+            return frontmatter;
+        }
+
+        function buildTreeStructure() {
+            // Group notes by type
+            const grouped = notes.reduce((acc, note) => {
+                const type = note.type;
+                if (!acc[type]) acc[type] = [];
+                acc[type].push(note);
+                return acc;
+            }, {});
+
+            // Create hierarchical structure
+            treeData = {
+                id: 'root',
+                label: 'Knowledge Vault',
+                type: 'root',
+                children: Object.entries(grouped).map(([type, typeNotes]) => ({
+                    id: type,
+                    label: getTypeLabel(type),
+                    type: type,
+                    icon: typeIcons[type] || '📄',
+                    count: typeNotes.length,
+                    children: typeNotes.map(note => ({
+                        id: note.filename,
+                        label: note.title,
+                        type: note.type,
+                        icon: typeIcons[note.type] || '📄',
+                        note: note,
+                        children: extractSubItems(note)
+                    }))
+                }))
+            };
+        }
+
+        function getTypeLabel(type) {
+            const labels = {
+                person: 'People',
+                concept: 'Concepts',
+                project: 'Projects',
+                task: 'Tasks',
+                note: 'Notes',
+                research: 'Research',
+                meeting: 'Meetings',
+                idea: 'Ideas',
+                health: 'Health',
+                travel: 'Travel',
+                family: 'Family',
+                career: 'Career',
+                biography: 'Biography'
+            };
+            return labels[type] || type.charAt(0).toUpperCase() + type.slice(1);
+        }
+
+        function extractSubItems(note) {
+            const subItems = [];
+            const content = note.content.replace(/^---[\s\S]*?---/, '').trim();
+
+            // Extract tasks
+            const taskMatches = content.match(/^- \[([ x])\] (.+)$/gm);
+            if (taskMatches && taskMatches.length > 0) {
+                subItems.push({
+                    id: `${note.filename}-tasks`,
+                    label: `Tasks (${taskMatches.length})`,
+                    type: 'tasks',
+                    icon: '✅',
+                    children: taskMatches.map((task, i) => {
+                        const checked = task.includes('[x]');
+                        const text = task.replace(/^- \[([ x])\] /, '');
+                        return {
+                            id: `${note.filename}-task-${i}`,
+                            label: text,
+                            type: 'task',
+                            icon: checked ? '✅' : '⬜',
+                            completed: checked
+                        };
+                    })
+                });
+            }
+
+            // Extract headings as sub-sections
+            const headingMatches = content.match(/^#{2,4}\s+(.+)$/gm);
+            if (headingMatches && headingMatches.length > 0) {
+                subItems.push({
+                    id: `${note.filename}-sections`,
+                    label: `Sections (${headingMatches.length})`,
+                    type: 'sections',
+                    icon: '📋',
+                    children: headingMatches.map((heading, i) => {
+                        const level = heading.match(/^#+/)[0].length;
+                        const text = heading.replace(/^#+\s+/, '');
+                        return {
+                            id: `${note.filename}-section-${i}`,
+                            label: text,
+                            type: 'section',
+                            icon: level === 2 ? '📄' : '📝',
+                            level: level
+                        };
+                    })
+                });
+            }
+
+            return subItems;
+        }
+
+        function renderTree() {
+            const treeElement = document.getElementById('knowledgeTree');
+            treeElement.innerHTML = renderTreeNode(treeData, 0);
+        }
+
+        function renderTreeNode(node, depth) {
+            if (!node.children || node.children.length === 0) {
+                return `
+                    <div class="tree-node">
+                        <div class="tree-item" data-type="${node.type}" onclick="selectNode('${node.id}')">
+                            <div class="tree-toggle"></div>
+                            <div class="tree-icon">${node.icon || '📄'}</div>
+                            <div class="tree-label">${node.label}</div>
+                            ${node.count ? `<div class="tree-count">${node.count}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            const childrenHtml = node.children.map(child => renderTreeNode(child, depth + 1)).join('');
+            const isExpanded = depth < 2; // Auto-expand first 2 levels
+
+            return `
+                <div class="tree-node">
+                    <div class="tree-item" data-type="${node.type}" onclick="selectNode('${node.id}')">
+                        <div class="tree-toggle expandable" onclick="toggleNode(event, '${node.id}')">
+                            ${isExpanded ? '▼' : '▶'}
+                        </div>
+                        <div class="tree-icon">${node.icon || '📄'}</div>
+                        <div class="tree-label">${node.label}</div>
+                        ${node.count ? `<div class="tree-count">${node.count}</div>` : ''}
+                    </div>
+                    <div class="tree-children ${isExpanded ? 'expanded' : ''}" id="children-${node.id}">
+                        ${childrenHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleNode(event, nodeId) {
+            event.stopPropagation();
+            const childrenElement = document.getElementById(`children-${nodeId}`);
+            const toggleElement = event.target;
+
+            if (childrenElement.classList.contains('expanded')) {
+                childrenElement.classList.remove('expanded');
+                toggleElement.textContent = '▶';
+            } else {
+                childrenElement.classList.add('expanded');
+                toggleElement.textContent = '▼';
+            }
+        }
+
+        function selectNode(nodeId) {
+            // Remove previous active states
+            document.querySelectorAll('.tree-item.active').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Set active state
+            const selectedElement = document.querySelector(`[onclick="selectNode('${nodeId}')"]`);
+            if (selectedElement) {
+                selectedElement.classList.add('active');
+            }
+
+            // Find the node data
+            const node = findNodeById(treeData, nodeId);
+            if (node) {
+                displayNodeContent(node);
+            }
+        }
+
+        function findNodeById(tree, targetId) {
+            if (tree.id === targetId) return tree;
+
+            if (tree.children) {
+                for (const child of tree.children) {
+                    const result = findNodeById(child, targetId);
+                    if (result) return result;
+                }
+            }
+
+            return null;
+        }
+
+        function displayNodeContent(node) {
+            currentNode = node;
+
+            // Update breadcrumb
+            const breadcrumb = buildBreadcrumb(node);
+            document.getElementById('breadcrumb').innerHTML = breadcrumb;
+
+            // Update title
+            document.getElementById('contentTitle').textContent = node.label;
+
+            // Update meta information
+            updateContentMeta(node);
+
+            // Update body content
+            updateContentBody(node);
+        }
+
+        function buildBreadcrumb(node) {
+            const path = [];
+            let current = node;
+
+            while (current && current.id !== 'root') {
+                path.unshift(current);
+                current = findParentNode(treeData, current.id);
+            }
+
+            const breadcrumbItems = ['<a href="#" class="breadcrumb-item" onclick="selectNode(\'root\')">Vault</a>'];
+            path.forEach(pathNode => {
+                breadcrumbItems.push(`<span> / </span><a href="#" class="breadcrumb-item" onclick="selectNode('${pathNode.id}')">${pathNode.label}</a>`);
+            });
+
+            return breadcrumbItems.join('');
+        }
+
+        function findParentNode(tree, targetId) {
+            if (tree.children) {
+                for (const child of tree.children) {
+                    if (child.id === targetId) return tree;
+                    const result = findParentNode(child, targetId);
+                    if (result) return result;
+                }
+            }
+            return null;
+        }
+
+        function updateContentMeta(node) {
+            let noteCount = 0;
+            let linkCount = 0;
+
+            if (node.note) {
+                noteCount = 1;
+                linkCount = node.note.links ? node.note.links.length : 0;
+            } else if (node.children) {
+                noteCount = countNotesInTree(node);
+                linkCount = countLinksInTree(node);
+            }
+
+            document.getElementById('noteCount').textContent = `${noteCount} note${noteCount !== 1 ? 's' : ''}`;
+            document.getElementById('linkCount').textContent = `${linkCount} link${linkCount !== 1 ? 's' : ''}`;
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleDateString();
+        }
+
+        function countNotesInTree(node) {
+            let count = 0;
+            if (node.note) count = 1;
+            if (node.children) {
+                count += node.children.reduce((sum, child) => sum + countNotesInTree(child), 0);
+            }
+            return count;
+        }
+
+        function countLinksInTree(node) {
+            let count = 0;
+            if (node.note && node.note.links) {
+                count = node.note.links.length;
+            }
+            if (node.children) {
+                count += node.children.reduce((sum, child) => sum + countLinksInTree(child), 0);
+            }
+            return count;
+        }
+
+        function updateContentBody(node) {
+            const contentBody = document.getElementById('contentBody');
+
+            if (node.note) {
+                // Display individual note content
+                const content = node.note.content.replace(/^---[\s\S]*?---/, '').trim();
+                const processedContent = processMarkdown(content);
+
+                let html = `
+                    <div class="content-section">
+                        <div class="section-title">Content</div>
+                        <div class="markdown-content">${processedContent}</div>
+                    </div>
+                `;
+
+                // Add links section if note has links
+                if (node.note.links && node.note.links.length > 0) {
+                    html += `
+                        <div class="links-section">
+                            <div class="section-title">Related Notes</div>
+                            <div class="link-grid">
+                                ${node.note.links.map(link => {
+                                    const linkedNote = findNoteByLink(link);
+                                    return `
+                                        <a href="#" class="link-item" onclick="selectNoteByFilename('${linkedNote ? linkedNote.filename : ''}')">
+                                            <span class="link-icon">${linkedNote ? typeIcons[linkedNote.type] || '📄' : '🔗'}</span>
+                                            <span class="link-label">${linkedNote ? linkedNote.title : link}</span>
+                                        </a>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                contentBody.innerHTML = html;
+            } else {
+                // Display category or collection view
+                displayCategoryView(node, contentBody);
+            }
+        }
+
+        function processMarkdown(content) {
+            return content
+                .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                .replace(/^- \[([ x])\] (.+)$/gm, (match, checked, text) => {
+                    return `<div class="task-item">
+                        <input type="checkbox" class="task-checkbox" ${checked === 'x' ? 'checked' : ''} disabled>
+                        <span class="task-text ${checked === 'x' ? 'completed' : ''}">${text}</span>
+                    </div>`;
+                })
+                .replace(/^- (.+)$/gm, '<li>$1</li>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/^(?!<[hl]|<div|<li)(.+)$/gm, '<p>$1</p>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/`(.+?)`/g, '<code>$1</code>');
+        }
+
+        function findNoteByLink(link) {
+            return notes.find(note =>
+                note.filename.includes(link) ||
+                note.title.toLowerCase().includes(link.toLowerCase()) ||
+                (note.sem && note.sem.includes(link))
+            );
+        }
+
+        function selectNoteByFilename(filename) {
+            if (filename) {
+                selectNode(filename);
+            }
+        }
+
+        function displayCategoryView(node, container) {
+            if (!node.children || node.children.length === 0) {
+                container.innerHTML = `
+                    <div class="content-section">
+                        <div class="markdown-content">
+                            <p>No items in this category.</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const items = node.children.filter(child => child.note).map(child => {
+                const note = child.note;
+                const preview = note.content.replace(/^---[\s\S]*?---/, '').trim().substring(0, 200);
+
+                return `
+                    <div class="link-item" onclick="selectNode('${child.id}')">
+                        <span class="link-icon">${child.icon}</span>
+                        <div style="flex: 1;">
+                            <div class="link-label">${child.label}</div>
+                            <div style="font-size: 0.8em; color: var(--muted); margin-top: 4px;">
+                                ${preview}${preview.length >= 200 ? '...' : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="content-section">
+                    <div class="section-title">${node.label} (${node.children.length})</div>
+                    <div class="link-grid" style="grid-template-columns: 1fr;">
+                        ${items}
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateStats() {
+            const stats = document.getElementById('vaultStats');
+            const totalNotes = notes.length;
+            const totalLinks = notes.reduce((sum, note) => sum + (note.links ? note.links.length : 0), 0);
+
+            stats.textContent = `${totalNotes} notes • ${totalLinks} links`;
+        }
+
+        function filterTree(query) {
+            // Implementation for filtering the tree based on search query
+            // This would hide/show tree nodes based on the search term
+            console.log('Filtering tree with query:', query);
+        }
+
+        // Initialize the application when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
